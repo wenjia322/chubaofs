@@ -22,15 +22,36 @@ import (
 func (c *Console) registerApiRouters(router *mux.Router) {
 
 	// S3 router for bucket
-	router.Methods(http.MethodGet).Path("/bucket/list").HandlerFunc(c.listBucketsHandler)
-	router.Methods(http.MethodGet).Path("/bucket/create").HandlerFunc(c.createBucketHandler)
-	router.Methods(http.MethodGet).Path("/bucket/delete").HandlerFunc(c.deleteBucketHandler)
+	router.Methods(http.MethodPost).Path("/bucket/list").HandlerFunc(c.getBucketListHandler)
+	router.Methods(http.MethodPost).Path("/bucket/create").HandlerFunc(c.createBucketHandler)
+	router.Methods(http.MethodPost).Path("/bucket/delete").HandlerFunc(c.deleteBucketHandler)
 
 	// S3 router for object
-	router.Methods(http.MethodGet).Path("/object/list").HandlerFunc(c.listObjectsHandler)
-	router.Methods(http.MethodGet).Path("/object/put").HandlerFunc(c.putObjectHandler)
-	router.Methods(http.MethodGet).Path("/object/get").HandlerFunc(c.getObjectHandler)
+	router.Methods(http.MethodPost).Path("/object/put").HandlerFunc(c.putObjectHandler)
+	router.Methods(http.MethodPost).Path("/object/get").HandlerFunc(c.getObjectHandler)
+	router.Methods(http.MethodPost).Path("/object/delete").HandlerFunc(c.deleteObjectHandler)
+	router.Methods(http.MethodPost).Path("/object/list").HandlerFunc(c.getObjectListHandler)
+	router.Methods(http.MethodPost).Path("/object/url").HandlerFunc(c.createObjectUrlHandler)
+
+	router.Methods(http.MethodPost).Path("/folder/create").HandlerFunc(c.createFolderHandler)
+	router.Methods(http.MethodPost).Path("/folder/list").HandlerFunc(c.listFolderHandler)
 
 	// monitor router
+
+	//  bucket
+	//  getBucketList
+	//	createBucket
+	//	deleteBucket
+
+	//  putObject
+	//	getObject
+	//	deleteObject
+	//	getObjectList
+	//	createFolder
+	//	listFolder
+	//	createUrl
+
+	//  setBucketACL
+	//	getBucketACL
 
 }

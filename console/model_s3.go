@@ -14,10 +14,65 @@
 
 package console
 
-import "time"
+import (
+	"time"
+	"net/http"
+	"encoding/json"
+)
+
+const (
+	CodeFailed  = "8888"
+	CodeSuccess = "0000"
+	ContentTypeHeaderName = "Content-Type"
+	ContentTypeJsonValue = "application/json"
+	ResponseSuccess = "Operation success"
+)
 
 type Bucket struct {
 	Name       string
 	Creator    string
 	CreateTime time.Time
+}
+
+type RestResponse struct {
+	Code    string
+	Message string
+	Data    interface{}
+}
+
+func writeSuccessResponse(w http.ResponseWriter) {
+	er := &RestResponse{
+		Code:    CodeSuccess,
+		Message: ResponseSuccess,
+	}
+
+	data, _ := json.Marshal(er)
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set(ContentTypeHeaderName, ContentTypeJsonValue)
+	w.Write(data)
+}
+
+func writeDataResponse(w http.ResponseWriter, data interface{}) {
+	rr := &RestResponse{
+		Data:    data,
+		Code:    CodeSuccess,
+		Message: ResponseSuccess,
+	}
+
+	response, _ := json.Marshal(rr)
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set(ContentTypeHeaderName, ContentTypeJsonValue)
+	w.Write(response)
+}
+
+func writeErrorResponse(w http.ResponseWriter, message string) {
+	er := &RestResponse{
+		Code:    CodeFailed,
+		Message: message,
+	}
+
+	data, _ := json.Marshal(er)
+	w.WriteHeader(http.StatusOK)
+	w.Header().Set(ContentTypeHeaderName, ContentTypeJsonValue)
+	w.Write(data)
 }

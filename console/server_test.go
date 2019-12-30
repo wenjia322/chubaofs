@@ -27,8 +27,9 @@ func TestConsole_Lifecycle(t *testing.T) {
 	var err error
 	cfgStr := `
 {
-	"listen": ":10004",
-	"logDir": "/tmp/Logs/chubaofs"
+	"listen": ":10000",
+	"logDir": "/tmp/Logs/chubaofs",
+    "s3Endpoint": "http://127.0.0.1:10004"
 }
 `
 	// test log
@@ -45,7 +46,7 @@ func TestConsole_Lifecycle(t *testing.T) {
 	}
 	go func() {
 		fmt.Printf("console server will be shutdown after 3 seconds.\n")
-		time.Sleep(30 * time.Second)
+		time.Sleep(300 * time.Second)
 		fmt.Printf("console server will be shutdown.\n")
 		console.Shutdown()
 	}()

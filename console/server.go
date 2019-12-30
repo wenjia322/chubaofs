@@ -28,7 +28,7 @@ import (
 
 // The status of the console server
 const (
-	Standby uint32 = iota
+	Standby  uint32 = iota
 	Start
 	Running
 	Shutdown
@@ -37,7 +37,8 @@ const (
 
 // Configuration keys
 const (
-	configListen = "listen"
+	configListen     = "listen"
+	configS3Endpoint = "s3Endpoint"
 )
 
 // Default of configuration value
@@ -51,6 +52,7 @@ var (
 
 type Console struct {
 	listen     string
+	s3Endpoint string
 	httpServer *http.Server
 	state      uint32
 	wg         sync.WaitGroup
@@ -136,11 +138,16 @@ func (c *Console) parseConfig(cfg *config.Config) (err error) {
 	if len(listen) == 0 {
 		listen = defaultListen
 	}
+	endpoint := cfg.GetString(configS3Endpoint)
+	if len(endpoint) == 0 {
+		log.LogErrorf("parseConfig: s3 endpoint is empty")
+	}
 	if match := regexpListen.MatchString(listen); !match {
 		err = errors.New("invalid listen configuration")
 		return
 	}
 	c.listen = listen
+	c.s3Endpoint = endpoint
 	return
 }
 
