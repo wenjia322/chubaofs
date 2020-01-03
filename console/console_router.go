@@ -31,27 +31,20 @@ func (c *Console) registerApiRouters(router *mux.Router) {
 	router.Methods(http.MethodGet).Path("/object/get").HandlerFunc(c.getObjectHandler)
 	router.Methods(http.MethodPost).Path("/object/delete").HandlerFunc(c.deleteObjectHandler)
 	router.Methods(http.MethodPost).Path("/object/list").HandlerFunc(c.getObjectListHandler)
-	router.Methods(http.MethodPost).Path("/object/url").HandlerFunc(c.createObjectUrlHandler)
 
+	// url opration
+	router.Methods(http.MethodPost).Path("/object/url").HandlerFunc(c.createObjectUrlHandler)
+	router.Methods(http.MethodPost).Path("/object/url/get").HandlerFunc(c.getObjectUrlHandler)
+
+	// folder operation
 	router.Methods(http.MethodPost).Path("/folder/create").HandlerFunc(c.createFolderHandler)
 	router.Methods(http.MethodPost).Path("/folder/list").HandlerFunc(c.listFolderHandler)
+	router.Methods(http.MethodPost).Path("/folder/delete").HandlerFunc(c.deleteFolderHandler)
 
+	// ACL operation
+	router.Methods(http.MethodPost).Path("/bucket/acl/get").HandlerFunc(c.getBucketAclHandler)
+	router.Methods(http.MethodPost).Path("/bucket/acl/set").HandlerFunc(c.setBucketAclHandler)
+	router.Methods(http.MethodPost).Path("/object/acl/get").HandlerFunc(c.getObjectAclHandler)
+	router.Methods(http.MethodPost).Path("/object/acl/set").HandlerFunc(c.setObjectAclHandler)
 	// monitor router
-
-	//  bucket
-	//  getBucketList
-	//	createBucket
-	//	deleteBucket
-
-	//  putObject
-	//	getObject
-	//	deleteObject
-	//	getObjectList
-	//	createFolder
-	//	listFolder
-	//	createUrl
-
-	//  setBucketACL
-	//	getBucketACL
-
 }
