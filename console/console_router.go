@@ -28,7 +28,7 @@ func (c *Console) registerApiRouters(router *mux.Router) {
 
 	// S3 router for object
 	router.Methods(http.MethodPost).Path("/object/put").HandlerFunc(c.putObjectHandler)
-	router.Methods(http.MethodPost).Path("/object/get").HandlerFunc(c.getObjectHandler)
+	router.Methods(http.MethodGet).Path("/object/get").HandlerFunc(c.getObjectHandler)
 	router.Methods(http.MethodPost).Path("/object/delete").HandlerFunc(c.deleteObjectHandler)
 	router.Methods(http.MethodPost).Path("/object/list").HandlerFunc(c.getObjectListHandler)
 	router.Methods(http.MethodPost).Path("/object/url").HandlerFunc(c.createObjectUrlHandler)

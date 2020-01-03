@@ -29,7 +29,11 @@ func TestConsole_Lifecycle(t *testing.T) {
 {
 	"listen": ":10000",
 	"logDir": "/tmp/Logs/chubaofs",
-    "s3Endpoint": "http://127.0.0.1:10004"
+	"masterAddr": [
+    	"172.20.240.95:7002",
+    	"172.20.240.94:7002"
+	],
+    "s3Endpoint": "http://s3.jvs.jd.com"
 }
 `
 	// test log

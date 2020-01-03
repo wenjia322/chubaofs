@@ -15,23 +15,40 @@
 package console
 
 import (
-	"time"
-	"net/http"
 	"encoding/json"
+	"net/http"
+	"time"
 )
 
 const (
-	CodeFailed  = "8888"
-	CodeSuccess = "0000"
+	CodeFailed            = "8888"
+	CodeSuccess           = "0000"
 	ContentTypeHeaderName = "Content-Type"
-	ContentTypeJsonValue = "application/json"
-	ResponseSuccess = "Operation success"
+	ContentTypeJsonValue  = "application/json"
+	ResponseSuccess       = "Operation success"
 )
 
 type Bucket struct {
 	Name       string
 	Creator    string
 	CreateTime time.Time
+}
+
+type Object struct {
+	Size         int64
+	OwnerId      string
+	OwnerName    string
+	ObjectName   string
+	StorageClass string
+	LastModified *time.Time
+}
+
+type ObjectList struct {
+	KeyCount    int64
+	StartAfter  string
+	IsTruncated bool
+	Objects     []*Object
+	Directories []*string
 }
 
 type RestResponse struct {

@@ -16,6 +16,7 @@ package console
 
 import (
 	"context"
+	"github.com/chubaofs/chubaofs/sdk/master"
 	"github.com/chubaofs/chubaofs/util/config"
 	"github.com/chubaofs/chubaofs/util/errors"
 	"github.com/chubaofs/chubaofs/util/log"
@@ -28,7 +29,7 @@ import (
 
 // The status of the console server
 const (
-	Standby  uint32 = iota
+	Standby uint32 = iota
 	Start
 	Running
 	Shutdown
@@ -37,8 +38,9 @@ const (
 
 // Configuration keys
 const (
-	configListen     = "listen"
-	configS3Endpoint = "s3Endpoint"
+	configListen      = "listen"
+	configMasterNodes = "masterAddr"
+	configS3Endpoint  = "s3Endpoint"
 )
 
 // Default of configuration value
@@ -51,11 +53,13 @@ var (
 )
 
 type Console struct {
-	listen     string
-	s3Endpoint string
-	httpServer *http.Server
-	state      uint32
-	wg         sync.WaitGroup
+	listen       string
+	s3Region     string
+	s3Endpoint   string
+	httpServer   *http.Server
+	state        uint32
+	wg           sync.WaitGroup
+	masterClient *master.MasterClient
 }
 
 func (c *Console) Start(cfg *config.Config) (err error) {
@@ -138,16 +142,36 @@ func (c *Console) parseConfig(cfg *config.Config) (err error) {
 	if len(listen) == 0 {
 		listen = defaultListen
 	}
+
+	// parse s3 endpoint
 	endpoint := cfg.GetString(configS3Endpoint)
 	if len(endpoint) == 0 {
 		log.LogErrorf("parseConfig: s3 endpoint is empty")
 	}
 	if match := regexpListen.MatchString(listen); !match {
-		err = errors.New("invalid listen configuration")
-		return
+		return errors.New("invalid listen configuration")
 	}
+
+	// parse master nodes
+	masterNodes := make([]string, 0)
+	if len(cfg.GetArray(configMasterNodes)) == 0 {
+		return errors.New("Err:masterAddr invalid")
+	}
+	for _, ip := range cfg.GetArray(configMasterNodes) {
+		masterNodes = append(masterNodes, ip.(string))
+	}
+	masterClient := master.NewMasterClient(masterNodes, false)
+
+	// get s3 region
+	ci, err := masterClient.AdminAPI().GetClusterInfo()
+	if err != nil || len(ci.Cluster) <= 0 {
+		return errors.New("Err:cluster info invalid")
+	}
+
 	c.listen = listen
+	c.s3Region = ci.Cluster
 	c.s3Endpoint = endpoint
+	c.masterClient = masterClient
 	return
 }
 
