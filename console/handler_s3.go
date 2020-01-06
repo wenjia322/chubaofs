@@ -21,12 +21,15 @@ import (
 	"github.com/aws/aws-sdk-go/service/s3"
 
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/chubaofs/chubaofs/util/log"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"runtime"
 	"strconv"
+	"strings"
 )
 
 func (c *Console) getS3Keys(r *http.Request) (string, string, error) {
@@ -356,10 +359,199 @@ func (c *Console) createObjectUrlHandler(w http.ResponseWriter, r *http.Request)
 
 }
 
-func (c *Console) createFolderHandler(w http.ResponseWriter, r *http.Request) {
+func (c *Console) getObjectUrlHandler(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (c *Console) listFolderHandler(w http.ResponseWriter, r *http.Request) {
+func (c *Console) createFolderHandler(w http.ResponseWriter, r *http.Request) {
+	failedResponseInfo := "create folder failed!!!"
 
+	s3Client, req, err := prepareHandler(r, "bucketName", "folderName", "parentName")
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	bucketName := req["bucketName"].(string)
+	folderName := req["folderName"].(string)
+	parentName := req["parentName"].(string)
+
+	//check parent
+
+	input := &s3.PutObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(parentName + folderName),
+	}
+	_, err = s3Client.PutObject(input)
+	if err != nil {
+		log.LogErrorf("%s(): create folder failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	writeSuccessResponse(w)
+}
+
+func (c *Console) listFolderHandler(w http.ResponseWriter, r *http.Request) {
+	//init
+
+	//checkfolder
+
+	//do_op
+}
+
+func (c *Console) deleteFolderHandler(w http.ResponseWriter, r *http.Request) {
+	//init
+
+	//checkfolder and child object
+
+	//do_op
+}
+
+func (c *Console) getBucketAclHandler(w http.ResponseWriter, r *http.Request) {
+	failedResponseInfo := "get bucket acl failed!!!"
+
+	s3Client, req, err := prepareHandler(r, "bucketName")
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	bucketName := req["bucketName"].(string)
+
+	input := &s3.GetBucketAclInput{
+		Bucket: aws.String(bucketName),
+	}
+	output, err := s3Client.GetBucketAcl(input)
+	if err != nil {
+		log.LogErrorf("%s(): get bucket acl failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	writeDataResponse(w, output)
+}
+
+func (c *Console) setBucketAclHandler(w http.ResponseWriter, r *http.Request) {
+	failedResponseInfo := "set bucket acl failed!!!"
+
+	s3Client, req, err := prepareHandler(r, "bucketName")
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	bucketName := req["bucketName"].(string)
+
+	input := &s3.PutBucketAclInput{
+		Bucket: aws.String(bucketName),
+	}
+
+	_, err = s3Client.PutBucketAcl(input)
+	if err != nil {
+		log.LogErrorf("%s(): set bucket acl failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+	writeSuccessResponse(w)
+}
+
+func (c *Console) getObjectAclHandler(w http.ResponseWriter, r *http.Request) {
+	failedResponseInfo := "get object acl failed!!!"
+
+	s3Client, req, err := prepareHandler(r, "bucketName", "objectName")
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	bucketName := req["bucketName"].(string)
+	objectName := req["objectName"].(string)
+
+	input := &s3.GetObjectAclInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(objectName),
+	}
+
+	output, err := s3Client.GetObjectAcl(input)
+	if err != nil {
+		log.LogErrorf("%s(): get object acl failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+	writeDataResponse(w, output)
+}
+
+func (c *Console) setObjectAclHandler(w http.ResponseWriter, r *http.Request) {
+	failedResponseInfo := "set object acl failed!!!"
+
+	s3Client, req, err := prepareHandler(r, "bucketName", "objectName")
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	bucketName := req["bucketName"].(string)
+	objectName := req["objectName"].(string)
+
+	input := &s3.PutObjectAclInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(objectName),
+	}
+
+	_, err = s3Client.PutObjectAcl(input)
+	if err != nil {
+		log.LogErrorf("%s(): set object acl failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+	writeSuccessResponse(w)
+}
+
+func prepareHandler(r *http.Request, args ...string) (*s3.S3, map[string]interface{}, error) {
+	region := "cfs_default"
+	accessKey := "YqgyNwuMUielu8pN"
+	secretKey := "TDp9RplFfEG9VwGHvtKIV7357aPM3OvZ"
+	endPoint := "http://127.0.0.1:32793"
+
+	body, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		errInfo := fmt.Sprintf("read request body failed cause by [%v]", err)
+		return nil, nil, errors.New(errInfo)
+	}
+
+	var req map[string]interface{}
+	json.Unmarshal(body, &req)
+
+	for _, arg := range args {
+		if _, ok := req[arg]; !ok {
+			errInfo := fmt.Sprintf("can't find param [%s]", arg)
+			return nil, nil, errors.New(errInfo)
+		}
+	}
+
+	s3Session, err := session.NewSession(&aws.Config{
+		Region:           aws.String(region),
+		Endpoint:         aws.String(endPoint),
+		Credentials:      credentials.NewStaticCredentials(accessKey, secretKey, ""),
+		DisableSSL:       aws.Bool(false),
+		S3ForcePathStyle: aws.Bool(true),
+	})
+	if err != nil {
+		errInfo := fmt.Sprintf("create s3 client session failed cause by [%v]", err)
+		return nil, nil, errors.New(errInfo)
+	}
+
+	return s3.New(s3Session), req, err
+}
+
+func getCaller() string {
+	fn, _, _, _ := runtime.Caller(1)
+	fns := strings.Split(runtime.FuncForPC(fn).Name(), ".")
+	return fns[len(fns)-1]
 }

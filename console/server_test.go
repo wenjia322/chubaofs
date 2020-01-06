@@ -49,7 +49,7 @@ func TestConsole_Lifecycle(t *testing.T) {
 		t.Fatalf("start console server fail cause: %v", err)
 	}
 	go func() {
-		fmt.Printf("console server will be shutdown after 3 seconds.\n")
+		fmt.Printf("console server will be shutdown after 300 seconds.\n")
 		time.Sleep(300 * time.Second)
 		fmt.Printf("console server will be shutdown.\n")
 		console.Shutdown()
