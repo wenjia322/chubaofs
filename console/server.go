@@ -25,11 +25,15 @@ import (
 	"regexp"
 	"sync"
 	"sync/atomic"
+	"github.com/chubaofs/chubaofs/util/auth"
+	"time"
+	authSdk "github.com/chubaofs/chubaofs/sdk/auth"
+	"strings"
 )
 
 // The status of the console server
 const (
-	Standby uint32 = iota
+	Standby  uint32 = iota
 	Start
 	Running
 	Shutdown
@@ -41,6 +45,9 @@ const (
 	configListen      = "listen"
 	configMasterNodes = "masterAddr"
 	configS3Endpoint  = "s3Endpoint"
+	configConsoleId   = "consoleId"
+	configConsoleKey  = "consoleKey"
+	configAuthNodes   = "authAddr"
 )
 
 // Default of configuration value
@@ -60,6 +67,18 @@ type Console struct {
 	state        uint32
 	wg           sync.WaitGroup
 	masterClient *master.MasterClient
+	authClient   *authSdk.AuthClient
+	authNodeInfo *AuthNodeInfo
+	consoleId    string
+	consoleKey   string
+}
+
+type AuthNodeInfo struct {
+	authAddr  []string
+	authId    string
+	ticket    *auth.Ticket
+	ticketTTL int
+	rwMutex   sync.RWMutex
 }
 
 func (c *Console) Start(cfg *config.Config) (err error) {
@@ -168,11 +187,62 @@ func (c *Console) parseConfig(cfg *config.Config) (err error) {
 		return errors.New("Err:cluster info invalid")
 	}
 
+	// parse auth node info
+	consoleId := cfg.GetString(configConsoleId)
+	consoleKey := cfg.GetString(configConsoleKey)
+	if len(consoleId) == 0 {
+		log.LogErrorf("parseConfig: console id is empty")
+		return errors.New("console id is empty")
+	}
+	if len(consoleKey) == 0 {
+		log.LogErrorf("parseConfig: console key is empty")
+		return errors.New("console key is empty")
+	}
+	authNodes := make([]string, 0)
+	if len(cfg.GetArray(configAuthNodes)) == 0 {
+		return errors.New("Err:authAddr invalid")
+	}
+	for _, ip := range cfg.GetArray(configAuthNodes) {
+		authNodes = append(authNodes, ip.(string))
+	}
+	authClient := authSdk.NewAuthClient(strings.Join(authNodes, ","), false,  "")
+
 	c.listen = listen
 	c.s3Region = ci.Cluster
 	c.s3Endpoint = endpoint
+	c.authClient = authClient
 	c.masterClient = masterClient
 	return
+}
+
+func (c *Console) updateAuthTicket() {
+	ttl := c.authNodeInfo.ticketTTL
+	ttl = ttl - 10
+
+	duration := time.Duration(time.Minute * time.Duration(ttl))
+	ticker := time.NewTicker(duration)
+
+	doUpdate := func() (*auth.Ticket, error) {
+		c.authNodeInfo.rwMutex.Lock()
+		defer c.authNodeInfo.rwMutex.Unlock()
+		id := c.consoleId
+		userKey := c.consoleKey
+		serviceId := c.authNodeInfo.authId
+
+		return c.authClient.API().GetTicket(id, userKey, serviceId)
+	}
+
+	for {
+		select {
+		case timeNow := <-ticker.C:
+			log.LogInfof("Update auth ticket, current time : %s", timeNow)
+			ticket, err := doUpdate()
+			if err != nil {
+				log.LogErrorf("Get auth node ticket failed cause : %s", err)
+			}
+			c.authNodeInfo.ticket = ticket
+		}
+	}
 }
 
 func NewServer() *Console {

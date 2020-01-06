@@ -24,18 +24,27 @@ import (
 )
 
 func TestConsole_Lifecycle(t *testing.T) {
-	var err error
 	cfgStr := `
 {
 	"listen": ":10000",
 	"logDir": "/tmp/Logs/chubaofs",
+	
 	"masterAddr": [
     	"172.20.240.95:7002",
     	"172.20.240.94:7002"
 	],
-    "s3Endpoint": "http://s3.jvs.jd.com"
+    
+	"s3Endpoint": "http://s3.jvs.jd.com"
+
+	"consoleId": "123456",
+	"consoleKey": "123456",
+	"authAddr": [
+		"172.20.240.96:7001",
+		"172.20.240.97:7001"
+	]
 }
 `
+	var err error
 	// test log
 	cfg := config.LoadConfigString(cfgStr)
 	if _, err := log.InitLog(cfg.GetString("logDir"), "console", log.DebugLevel, nil); err != nil {

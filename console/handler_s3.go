@@ -32,17 +32,25 @@ import (
 	"strings"
 )
 
-func (c *Console) getS3Keys(r *http.Request) (string, string, error) {
+func (c *Console) getS3Keys(w http.ResponseWriter, r *http.Request) (string, string, error) {
 	// parse query parameter
 	params := r.URL.Query()
 	userId, _ := params["userId"]
-	fmt.Println("userId : ", userId)
+	if len(userId[0]) == 0 {
+		log.LogErrorf("getS3Keys : user id is empty")
+		return "", "", errors.New("can not get user id from request")
+	}
 	// get access key and secret key using user id from auth node
-	return "", "", nil
+	keyInfo, err := c.authClient.API().AdminGetCaps(c.consoleId, c.consoleKey, userId[0])
+	if err != nil {
+		log.LogErrorf("getS3Keys : get access key and secret key from auth node")
+		return "", "", err
+	}
+	return keyInfo.AccessKey, keyInfo.SecretKey, nil
 }
 
 func (c *Console) getS3Client(w http.ResponseWriter, r *http.Request) (*s3.S3, error) {
-	accessKey, secretKey, err := c.getS3Keys(r)
+	accessKey, secretKey, err := c.getS3Keys(w, r)
 	if err != nil {
 		log.LogErrorf("getS3Client : get user info failed cause : %s", err)
 		return nil, err
