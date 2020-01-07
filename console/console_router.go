@@ -34,7 +34,6 @@ func (c *Console) registerApiRouters(router *mux.Router) {
 
 	// url opration
 	router.Methods(http.MethodPost).Path("/object/url").HandlerFunc(c.createObjectUrlHandler)
-	router.Methods(http.MethodPost).Path("/object/url/get").HandlerFunc(c.getObjectUrlHandler)
 
 	// folder operation
 	router.Methods(http.MethodPost).Path("/folder/create").HandlerFunc(c.createFolderHandler)

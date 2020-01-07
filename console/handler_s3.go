@@ -30,6 +30,7 @@ import (
 	"runtime"
 	"strconv"
 	"strings"
+	"time"
 )
 
 func (c *Console) getS3Keys(w http.ResponseWriter, r *http.Request) (string, string, error) {
@@ -364,11 +365,39 @@ func (c *Console) getObjectListHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Console) createObjectUrlHandler(w http.ResponseWriter, r *http.Request) {
+	failedResponseInfo := "create object url failed!!!"
 
-}
+	s3Client, req, err := prepareHandler(r, "bucketName", "objectName", "durationInSeconds")
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
 
-func (c *Console) getObjectUrlHandler(w http.ResponseWriter, r *http.Request) {
+	bucketName := req["bucketName"].(string)
+	objectName := req["objectName"].(string)
+	durationInSeconds, err := strconv.ParseInt(req["durationInSeconds"].(string), 10, 64)
+	if err != nil {
+		log.LogErrorf("%s(): create object url failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
 
+	input := &s3.GetObjectInput{
+		Bucket: aws.String(bucketName),
+		Key:    aws.String(objectName),
+	}
+
+	getReq, _ := s3Client.GetObjectRequest(input)
+
+	presignedRequest, err := getReq.Presign(time.Duration(durationInSeconds) * time.Minute)
+	if err != nil {
+		log.LogErrorf("%s(): create object url failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	writeDataResponse(w, presignedRequest)
 }
 
 func (c *Console) createFolderHandler(w http.ResponseWriter, r *http.Request) {
@@ -382,10 +411,21 @@ func (c *Console) createFolderHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bucketName := req["bucketName"].(string)
+	// Check folderName and parentName valid
 	folderName := req["folderName"].(string)
+	err = checkFolderName(folderName, false)
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
 	parentName := req["parentName"].(string)
-
-	//check parent
+	err = checkFolderName(parentName, true)
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
 
 	input := &s3.PutObjectInput{
 		Bucket: aws.String(bucketName),
@@ -402,19 +442,205 @@ func (c *Console) createFolderHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func (c *Console) listFolderHandler(w http.ResponseWriter, r *http.Request) {
-	//init
+	failedResponseInfo := "list folder failed!!!"
 
-	//checkfolder
+	s3Client, req, err := prepareHandler(r, "bucketName", "folderName", "maxKeys", "pageNum")
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+	bucketName := req["bucketName"].(string)
+	// Check folderName and parentName valid
+	folderName := req["folderName"].(string)
+	err = checkFolderName(folderName, true)
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
 
-	//do_op
+	maxKeys, err := strconv.ParseInt(req["maxKeys"].(string), 10, 64)
+	if err != nil {
+		log.LogErrorf("%s(): list folder failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	pageNum, err := strconv.ParseInt(req["pageNum"].(string), 10, 64)
+	if err != nil {
+		log.LogErrorf("%s(): list folder failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	// Get object list
+	input := &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucketName),
+		Prefix: aws.String(folderName),
+	}
+
+	output, err := s3Client.ListObjectsV2(input)
+	if err != nil {
+		log.LogErrorf("%s(): list folder failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	// parse folders and files in output
+	//
+	// dir1/
+	// dir1/object
+	// dir1/dir1-1/
+	// dir1/dir1-1/object
+	//
+	objects := make([]*Object, 0)
+	folders := make([]*string, 0)
+	for _, o := range output.Contents {
+		item := aws.StringValue(o.Key)
+		if item == folderName {
+			continue
+		}
+
+		item = item[len(folderName):len(item)]
+		index := strings.Index(item, "/")
+		if index == -1 {
+			object := &Object{
+				Size:         aws.Int64Value(o.Size),
+				OwnerId:      aws.StringValue(o.Owner.ID),
+				OwnerName:    aws.StringValue(o.Owner.DisplayName),
+				ObjectName:   item,
+				StorageClass: aws.StringValue(o.StorageClass),
+				LastModified: o.LastModified,
+			}
+			objects = append(objects, object)
+		} else {
+			item = item[0:index]
+			isExsit := false
+			for _, n := range folders {
+				if item == aws.StringValue(n) {
+					isExsit = true
+					break
+				}
+			}
+
+			if isExsit == false {
+				folders = append(folders, &item)
+			}
+		}
+	}
+
+	keyCount := int64(len(objects) + len(folders))
+	totalKeys := keyCount
+	if maxKeys != 0 {
+		// If there is not enough item for request page, we report error
+		if maxKeys*(pageNum-1) > keyCount {
+			log.LogErrorf("%s(): list folder failed cause by [%v]", getCaller(), "Not enough folders or files")
+			writeErrorResponse(w, failedResponseInfo)
+			return
+		}
+
+		// Truncate folders and objects, Discard content before page #PageNum
+		truncateLen := maxKeys * (pageNum - 1)
+		if truncateLen >= int64(len(folders)) {
+			truncateLen = truncateLen - int64(len(folders))
+			folders = folders[0:0]
+			objects = objects[truncateLen:int64(len(objects))]
+		} else {
+			folders = folders[truncateLen:int64(len(folders))]
+		}
+
+		// Truncate folders and objects, discard content after page #PageNum
+		keyCount = int64(len(objects) + len(folders))
+		if maxKeys < keyCount {
+			keyCount = maxKeys
+			if maxKeys < int64(len(folders)) {
+				folders = folders[0:maxKeys]
+				objects = objects[0:0]
+			} else {
+				maxFiles := maxKeys - int64(len(folders))
+				objects = objects[0:maxFiles]
+			}
+		}
+	}
+
+	isTruncated := false
+	if totalKeys != keyCount {
+		isTruncated = true
+	}
+
+	objectList := ObjectList{
+		Objects:     objects,
+		Directories: folders,
+		KeyCount:    keyCount,
+		IsTruncated: isTruncated,
+	}
+
+	writeDataResponse(w, objectList)
 }
 
 func (c *Console) deleteFolderHandler(w http.ResponseWriter, r *http.Request) {
-	//init
+	failedResponseInfo := "delete folder failed!!!"
 
-	//checkfolder and child object
+	s3Client, req, err := prepareHandler(r, "bucketName", "folderName", "parentName")
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
 
-	//do_op
+	bucketName := req["bucketName"].(string)
+	// Check folderName and parentName valid
+	folderName := req["folderName"].(string)
+	err = checkFolderName(folderName, false)
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+	parentName := req["parentName"].(string)
+	err = checkFolderName(parentName, true)
+	if err != nil {
+		log.LogErrorf("%s(): %s", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	input := &s3.ListObjectsV2Input{
+		Bucket: aws.String(bucketName),
+		Prefix: aws.String(parentName + folderName),
+	}
+
+	output, err := s3Client.ListObjectsV2(input)
+	if err != nil {
+		log.LogErrorf("%s(): delete folder failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	objects := make([]*s3.ObjectIdentifier, 0)
+	for _, o := range output.Contents {
+		object := &s3.ObjectIdentifier{
+			Key: aws.String(aws.StringValue(o.Key)),
+		}
+		objects = append(objects, object)
+	}
+
+	deleteInput := &s3.DeleteObjectsInput{
+		Bucket: aws.String(bucketName),
+		Delete: &s3.Delete{
+			Objects: objects,
+		},
+	}
+
+	_, err = s3Client.DeleteObjects(deleteInput)
+	if err != nil {
+		log.LogErrorf("%s(): delete folder failed cause by [%v]", getCaller(), err)
+		writeErrorResponse(w, failedResponseInfo)
+		return
+	}
+
+	writeSuccessResponse(w)
 }
 
 func (c *Console) getBucketAclHandler(w http.ResponseWriter, r *http.Request) {
@@ -464,6 +690,7 @@ func (c *Console) setBucketAclHandler(w http.ResponseWriter, r *http.Request) {
 		writeErrorResponse(w, failedResponseInfo)
 		return
 	}
+
 	writeSuccessResponse(w)
 }
 
@@ -522,10 +749,10 @@ func (c *Console) setObjectAclHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func prepareHandler(r *http.Request, args ...string) (*s3.S3, map[string]interface{}, error) {
-	region := "cfs_default"
-	accessKey := "YqgyNwuMUielu8pN"
-	secretKey := "TDp9RplFfEG9VwGHvtKIV7357aPM3OvZ"
-	endPoint := "http://127.0.0.1:32793"
+	region := ""
+	accessKey := ""
+	secretKey := ""
+	endPoint := ""
 
 	body, err := ioutil.ReadAll(r.Body)
 	if err != nil {
@@ -548,7 +775,7 @@ func prepareHandler(r *http.Request, args ...string) (*s3.S3, map[string]interfa
 		Endpoint:         aws.String(endPoint),
 		Credentials:      credentials.NewStaticCredentials(accessKey, secretKey, ""),
 		DisableSSL:       aws.Bool(false),
-		S3ForcePathStyle: aws.Bool(true),
+		S3ForcePathStyle: aws.Bool(false),
 	})
 	if err != nil {
 		errInfo := fmt.Sprintf("create s3 client session failed cause by [%v]", err)
@@ -562,4 +789,49 @@ func getCaller() string {
 	fn, _, _, _ := runtime.Caller(1)
 	fns := strings.Split(runtime.FuncForPC(fn).Name(), ".")
 	return fns[len(fns)-1]
+}
+
+func checkObjectName(str string) (err error) {
+	if len(str) == 0 {
+		errInfo := fmt.Sprintf("objectName is null!!!")
+		return errors.New(errInfo)
+	}
+
+	for {
+		index := strings.Index(str, DefaultSeparator)
+		if (index == 0) || (index == len(str)-1) {
+			errInfo := fmt.Sprintf("invalid objectName!!!")
+			return errors.New(errInfo)
+		} else if index == -1 {
+			return nil
+		}
+		str = str[index+1 : len(str)]
+	}
+
+	errInfo := fmt.Sprintf("Unexpected error!!!")
+	return errors.New(errInfo)
+}
+
+func checkFolderName(str string, isAllowedNull bool) (err error) {
+	if len(str) == 0 {
+		if isAllowedNull {
+			return nil
+		}
+		errInfo := fmt.Sprintf("folderName is null!!!")
+		return errors.New(errInfo)
+	}
+
+	for {
+		index := strings.Index(str, DefaultSeparator)
+		if (index == 0) || (index == -1) {
+			errInfo := fmt.Sprintf("invalid objectName!!!")
+			return errors.New(errInfo)
+		} else if index == len(str)-1 {
+			return nil
+		}
+		str = str[index+1 : len(str)]
+	}
+
+	errInfo := fmt.Sprintf("Unexpected error!!!")
+	return errors.New(errInfo)
 }

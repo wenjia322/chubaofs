@@ -16,4 +16,6 @@ package console
 
 const (
 	S3ListObjectsMaxKeys = "10"
+	DefaultMaxKeys       = 500
+	DefaultSeparator     = "/"
 )
