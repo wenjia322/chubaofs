@@ -18,4 +18,13 @@ const (
 	S3ListObjectsMaxKeys = "10"
 	DefaultMaxKeys       = 500
 	DefaultSeparator     = "/"
+
+	//ACL
+	UnknownACL       = "NO S3 Canned ACL"
+	FullPermission   = "FULL_CONTROL"
+	ReadPermission   = "READ"
+	WritePermission  = "WRITE"
+	AllUsersURI      = "http://acs.amazonaws.com/groups/global/AllUsers"
+	GroupGranteeType = "Group"
+	OwnerGranteeType = "CanonicalUser"
 )

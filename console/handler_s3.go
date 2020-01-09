@@ -665,13 +665,19 @@ func (c *Console) getBucketAclHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	writeDataResponse(w, output)
+	cannedAcl := parseCannedAcl(output.Grants, output.Owner, false)
+	if cannedAcl == UnknownACL {
+		writeDataResponse(w, output)
+		return
+	}
+
+	writeDataResponse(w, cannedAcl)
 }
 
 func (c *Console) setBucketAclHandler(w http.ResponseWriter, r *http.Request) {
 	failedResponseInfo := "set bucket acl failed!!!"
 
-	s3Client, req, err := prepareHandler(r, "bucketName")
+	s3Client, req, err := prepareHandler(r, "bucketName", "bucketAcl")
 	if err != nil {
 		log.LogErrorf("%s(): %s", getCaller(), err)
 		writeErrorResponse(w, failedResponseInfo)
@@ -679,10 +685,12 @@ func (c *Console) setBucketAclHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	bucketName := req["bucketName"].(string)
+	bucketAcl := req["bucketAcl"].(string)
 
 	input := &s3.PutBucketAclInput{
 		Bucket: aws.String(bucketName),
 	}
+	input.SetACL(bucketAcl)
 
 	_, err = s3Client.PutBucketAcl(input)
 	if err != nil {
@@ -718,13 +726,21 @@ func (c *Console) getObjectAclHandler(w http.ResponseWriter, r *http.Request) {
 		writeErrorResponse(w, failedResponseInfo)
 		return
 	}
-	writeDataResponse(w, output)
+
+	cannedAcl := parseCannedAcl(output.Grants, output.Owner, true)
+
+	if cannedAcl == UnknownACL {
+		writeDataResponse(w, output)
+		return
+	}
+
+	writeDataResponse(w, cannedAcl)
 }
 
 func (c *Console) setObjectAclHandler(w http.ResponseWriter, r *http.Request) {
 	failedResponseInfo := "set object acl failed!!!"
 
-	s3Client, req, err := prepareHandler(r, "bucketName", "objectName")
+	s3Client, req, err := prepareHandler(r, "bucketName", "objectName", "objectAcl")
 	if err != nil {
 		log.LogErrorf("%s(): %s", getCaller(), err)
 		writeErrorResponse(w, failedResponseInfo)
@@ -733,11 +749,13 @@ func (c *Console) setObjectAclHandler(w http.ResponseWriter, r *http.Request) {
 
 	bucketName := req["bucketName"].(string)
 	objectName := req["objectName"].(string)
+	objectAcl := req["objectAcl"].(string)
 
 	input := &s3.PutObjectAclInput{
 		Bucket: aws.String(bucketName),
 		Key:    aws.String(objectName),
 	}
+	input.SetACL(objectAcl)
 
 	_, err = s3Client.PutObjectAcl(input)
 	if err != nil {
@@ -834,4 +852,61 @@ func checkFolderName(str string, isAllowedNull bool) (err error) {
 
 	errInfo := fmt.Sprintf("Unexpected error!!!")
 	return errors.New(errInfo)
+}
+
+func parseCannedAcl(grants []*s3.Grant, owner *s3.Owner, isObject bool) (aclType string) {
+	haveOwnerFullControl := false
+	havePublicRead := false
+	havePublicWrite := false
+	haveUnknownAcl := false
+
+	for _, g := range grants {
+		if aws.StringValue(g.Grantee.ID) == aws.StringValue(owner.ID) {
+			if aws.StringValue(g.Permission) == FullPermission {
+				haveOwnerFullControl = true
+			} else {
+				haveUnknownAcl = true
+			}
+			continue
+		}
+
+		isAllUser := (aws.StringValue(g.Grantee.Type) == GroupGranteeType) && (aws.StringValue(g.Grantee.URI) == AllUsersURI)
+		if isAllUser {
+			if aws.StringValue(g.Permission) == ReadPermission {
+				havePublicRead = true
+			} else if aws.StringValue(g.Permission) == WritePermission {
+				havePublicWrite = true
+			} else {
+				haveUnknownAcl = true
+			}
+		} else {
+			haveUnknownAcl = true
+		}
+	}
+
+	if haveUnknownAcl {
+		return UnknownACL
+	}
+
+	if isObject {
+		if havePublicWrite && havePublicRead && haveOwnerFullControl {
+			return s3.ObjectCannedACLPublicReadWrite
+		} else if havePublicRead && haveOwnerFullControl {
+			return s3.ObjectCannedACLPublicRead
+		} else if haveOwnerFullControl {
+			return s3.ObjectCannedACLPrivate
+		} else {
+			return UnknownACL
+		}
+	}
+
+	if havePublicWrite && havePublicRead && haveOwnerFullControl {
+		return s3.BucketCannedACLPublicReadWrite
+	} else if havePublicRead && haveOwnerFullControl {
+		return s3.BucketCannedACLPublicRead
+	} else if haveOwnerFullControl {
+		return s3.BucketCannedACLPrivate
+	} else {
+		return UnknownACL
+	}
 }
