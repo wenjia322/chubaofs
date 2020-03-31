@@ -78,8 +78,10 @@ type VolumeConfig struct {
 type OSSMeta struct {
 	policy     *Policy
 	acl        *AccessControlPolicy
+	corsConfig *CORSConfiguration
 	policyLock sync.RWMutex
 	aclLock    sync.RWMutex
+	corsLock   sync.RWMutex
 }
 
 func (v *Volume) loadPolicy() (p *Policy) {
@@ -107,6 +109,20 @@ func (v *Volume) storeACL(p *AccessControlPolicy) {
 	v.om.aclLock.Lock()
 	v.om.acl = p
 	v.om.aclLock.Unlock()
+	return
+}
+
+func (v *Volume) loadCors() (cors *CORSConfiguration) {
+	v.om.corsLock.RLock()
+	cors = v.om.corsConfig
+	v.om.corsLock.RUnlock()
+	return
+}
+
+func (v *Volume) storeCors(cors *CORSConfiguration) {
+	v.om.corsLock.Lock()
+	v.om.corsConfig = cors
+	v.om.corsLock.Unlock()
 	return
 }
 
@@ -164,6 +180,14 @@ func (v *Volume) loadOSSMeta() {
 	if acl != nil {
 		v.storeACL(acl)
 	}
+
+	var cors *CORSConfiguration
+	if cors, err = v.loadBucketCors(); err != nil { // if cors isn't exist, it may return nil. So it needs to be cleared manually when deleting cors.
+		return
+	}
+	if cors != nil {
+		v.storeCors(cors)
+	}
 }
 
 func (v *Volume) Name() string {
@@ -186,16 +210,29 @@ func (v *Volume) loadBucketPolicy() (policy *Policy, err error) {
 }
 
 func (v *Volume) loadBucketACL() (*AccessControlPolicy, error) {
-	data, err2 := v.store.Get(v.name, bucketRootPath, OSS_ACL_KEY)
+	data, err1 := v.store.Get(v.name, bucketRootPath, OSS_ACL_KEY)
+	if err1 != nil {
+		return nil, err1
+	}
+	acl := &AccessControlPolicy{}
+	err2 := xml.Unmarshal(data, acl)
 	if err2 != nil {
 		return nil, err2
 	}
-	acl := &AccessControlPolicy{}
-	err3 := xml.Unmarshal(data, acl)
-	if err3 != nil {
-		return nil, err3
-	}
 	return acl, nil
+}
+
+func (v *Volume) loadBucketCors() (*CORSConfiguration, error) {
+	data, err1 := v.store.Get(v.name, bucketRootPath, OSS_CORS_KEY)
+	if err1 != nil {
+		return nil, err1
+	}
+	cors := &CORSConfiguration{}
+	err2 := json.Unmarshal(data, cors)
+	if err2 != nil {
+		return nil, err2
+	}
+	return cors, nil
 }
 
 func (v *Volume) OSSMeta() *OSSMeta {

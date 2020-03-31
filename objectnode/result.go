@@ -322,3 +322,8 @@ type ListBucketsOutput struct {
 	Buckets *Buckets `xml:"Buckets"`
 	Owner   *Owner   `xml:"Owner"`
 }
+
+type GetBucketCorsOutput struct {
+	XMLName   xml.Name    `xml:"GetBucketCorsOutput"`
+	corsRules []*CORSRule `xml:"CORSRule"`
+}

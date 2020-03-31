@@ -157,6 +157,13 @@ func (o *ObjectNode) registerApiRouters(router *mux.Router) {
 			Queries("tagging", "").
 			HandlerFunc(o.getBucketTaggingHandler)
 
+		// Get bucket cors
+		// API reference: https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetBucketCors.html
+		r.NewRoute().Name(ActionToUniqueRouteName(proto.OSSGetBucketCorsAction)).
+			Methods(http.MethodGet).
+			Queries("cors", "").
+			HandlerFunc(o.getBucketCorsHandler)
+
 		// List objects version 1
 		// API reference: https://docs.aws.amazon.com/AmazonS3/latest/API/API_ListObjects.html
 		r.NewRoute().Name(ActionToUniqueRouteName(proto.OSSListObjectsAction)).
@@ -258,6 +265,13 @@ func (o *ObjectNode) registerApiRouters(router *mux.Router) {
 			Queries("tagging", "").
 			HandlerFunc(o.putBucketTaggingHandler)
 
+		// Put bucket cors
+		// API reference: https://docs.aws.amazon.com/AmazonS3/latest/API/API_PutBucketCors.html
+		r.NewRoute().Name(ActionToUniqueRouteName(proto.OSSPutBucketCorsAction)).
+			Methods(http.MethodPut).
+			Queries("cors", "").
+			HandlerFunc(o.putBucketCorsHandler)
+
 		// Create bucket
 		// API reference: https://docs.aws.amazon.com/AmazonS3/latest/API/API_CreateBucket.html
 		r.NewRoute().Name(ActionToUniqueRouteName(proto.OSSCreateBucketAction)).
@@ -310,6 +324,13 @@ func (o *ObjectNode) registerApiRouters(router *mux.Router) {
 			Methods(http.MethodDelete).
 			Queries("tagging", "").
 			HandlerFunc(o.deleteBucketTaggingHandler)
+
+		// Delete bucket cors
+		// API reference: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucketCors.html
+		r.NewRoute().Name(ActionToUniqueRouteName(proto.OSSDeleteBucketCorsAction)).
+			Methods(http.MethodDelete).
+			Queries("cors", "").
+			HandlerFunc(o.deleteBucketCorsHandler)
 
 		// Delete bucket
 		// API reference: https://docs.aws.amazon.com/AmazonS3/latest/API/API_DeleteBucket.html

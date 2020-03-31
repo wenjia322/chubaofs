@@ -128,6 +128,6 @@ func (o *ObjectNode) deleteBucketPolicyHandler(w http.ResponseWriter, r *http.Re
 		ec = NoSuchBucket
 		return
 	}
-
+	// todo: implement
 	return
 }
