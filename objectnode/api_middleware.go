@@ -18,6 +18,7 @@ import (
 	"fmt"
 	"net/http"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
@@ -192,11 +193,43 @@ func (o *ObjectNode) contentMiddleware(next http.Handler) http.Handler {
 //   request → [pre-handle] → [next handler] → response
 func (o *ObjectNode) corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// write access control allow headers
-		w.Header().Set(HeaderNameAccessControlAllowOrigin, "*")
-		w.Header().Set(HeaderNameAccessControlAllowHeaders, "*")
-		w.Header().Set(HeaderNameAccessControlAllowMethods, "*")
-		w.Header().Set(HeaderNameAccessControlMaxAge, "0")
+		var err error
+		var param = ParseRequestParam(r)
+		if param.Bucket() == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		var vol *Volume
+		if vol, err = o.vm.Volume(param.Bucket()); err != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		cors := vol.loadCors()
+		if cors == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+		origin := r.Header.Get(Origin)
+		method := r.Header.Get(HeaderNameAccessControlRequestMethod)
+		headerStr := r.Header.Get(HeaderNameAccessControlRequestHeaders)
+		if origin == "" || method == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+		headers := strings.Split(headerStr, ",")
+		for _, corsRule := range cors.CORSRule {
+			if corsRule.match(origin, method, headers) {
+				// write access control allow headers
+				w.Header().Set(HeaderNameAccessControlAllowOrigin, origin)
+				w.Header().Set(HeaderNameAccessControlMaxAge, strconv.Itoa(int(corsRule.MaxAgeSeconds)))
+				w.Header().Set(HeaderNameAccessControlAllowMethods, strings.Join(corsRule.AllowedMethod, ","))
+				w.Header().Set(HeaderNameAccessControlAllowHeaders, strings.Join(corsRule.AllowedHeader, ","))
+				w.Header().Set(HeaderNamrAccessControlExposeHeaders, strings.Join(corsRule.ExposeHeader, ","))
+				next.ServeHTTP(w, r)
+				return
+			}
+		}
 		next.ServeHTTP(w, r)
+		return
 	})
 }

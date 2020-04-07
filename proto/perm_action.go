@@ -81,6 +81,7 @@ const (
 	OSSPutBucketCorsAction              Action = OSSActionPrefix + "PutBucketCORS"
 	OSSDeleteBucketCorsAction           Action = OSSActionPrefix + "DeleteBucketCORS"
 	//todo cors in acl?
+	OSSOptionsObjectAction Action = OSSActionPrefix + "OptionsObject"
 
 	// constants for POSIX file system interface
 	POSIXReadAction  Action = POSIXActionPrefix + "Read"
@@ -137,6 +138,7 @@ var (
 		OSSGetBucketCorsAction,
 		OSSPutBucketCorsAction,
 		OSSDeleteBucketCorsAction,
+		OSSOptionsObjectAction,
 
 		// posix file system interface actions
 		POSIXReadAction,
@@ -271,6 +273,7 @@ var (
 			OSSGetObjectTaggingAction,
 			OSSGetBucketTaggingAction,
 			OSSGetBucketCorsAction,
+			OSSOptionsObjectAction,
 
 			// file system interface
 			POSIXReadAction,
@@ -315,6 +318,7 @@ var (
 			OSSGetBucketCorsAction,
 			OSSPutBucketCorsAction,
 			OSSDeleteBucketCorsAction,
+			OSSOptionsObjectAction,
 
 			// file system interface
 			POSIXReadAction,
