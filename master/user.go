@@ -368,6 +368,15 @@ func (u *User) getAllUserInfo(keywords string) (users []*proto.UserInfo) {
 	return
 }
 
+func (u *User) getPassword(ak string) (password string, err error) {
+	var akUser *proto.AKUser
+	if akUser, err = u.getAKUser(ak); err != nil {
+		return
+	}
+	password = akUser.Password
+	return
+}
+
 func (u *User) getAKUser(ak string) (akUser *proto.AKUser, err error) {
 	if value, exist := u.AKStore.Load(ak); exist {
 		akUser = value.(*proto.AKUser)

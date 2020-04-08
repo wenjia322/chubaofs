@@ -160,3 +160,16 @@ func (api *UserAPI) ListUsers(keywords string) (users []*proto.UserInfo, err err
 	}
 	return
 }
+
+func (api *UserAPI) GetUserPassword(accessKey string) (password string, err error) {
+	var request = newAPIRequest(http.MethodGet, proto.UserPassword)
+	request.addParam("ak", accessKey)
+	var data []byte
+	if data, err = api.mc.serveRequest(request); err != nil {
+		return
+	}
+	if err = json.Unmarshal(data, &password); err != nil {
+		return
+	}
+	return
+}

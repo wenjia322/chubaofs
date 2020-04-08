@@ -784,6 +784,12 @@ func TestListUser(t *testing.T) {
 	process(reqURL, t)
 }
 
+func TestUserPassword(t *testing.T) {
+	reqURL := fmt.Sprintf("%v%v?ak=%v", hostAddr, proto.UserPassword, ak)
+	fmt.Println(reqURL)
+	process(reqURL, t)
+}
+
 func TestDeleteUser(t *testing.T) {
 	reqURL := fmt.Sprintf("%v%v?user=%v", hostAddr, proto.UserDelete, testUserID)
 	fmt.Println(reqURL)

@@ -242,6 +242,23 @@ func (m *Server) getAllUsers(w http.ResponseWriter, r *http.Request) {
 	sendOkReply(w, r, newSuccessHTTPReply(users))
 }
 
+func (m *Server) getUserPassword(w http.ResponseWriter, r *http.Request) {
+	var (
+		ak       string
+		password string
+		err      error
+	)
+	if ak, err = parseAccessKey(r); err != nil {
+		sendErrReply(w, r, &proto.HTTPReply{Code: proto.ErrCodeParamError, Msg: err.Error()})
+		return
+	}
+	if password, err = m.user.getPassword(ak); err != nil {
+		sendErrReply(w, r, newErrHTTPReply(err))
+		return
+	}
+	sendOkReply(w, r, newSuccessHTTPReply(password))
+}
+
 func parseUser(r *http.Request) (userID string, err error) {
 	if err = r.ParseForm(); err != nil {
 		return
