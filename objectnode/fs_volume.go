@@ -71,6 +71,9 @@ type VolumeConfig struct {
 	// Such as Volume topology and metadata update tasks.
 	// This is a optional configuration item.
 	OnAsyncTaskError AsyncTaskErrorFunc
+
+	// Get OSSMeta from the MetaNode every time if it is set true.
+	MetaStrict bool
 }
 
 // OSSMeta is bucket policy and ACL metadata.
@@ -81,6 +84,7 @@ type OSSMeta struct {
 	policyLock sync.RWMutex
 	aclLock    sync.RWMutex
 	corsLock   sync.RWMutex
+	strict     bool
 }
 
 func (v *Volume) loadPolicy() (p *Policy) {
@@ -151,10 +155,17 @@ type ListFilesV2Result struct {
 	CommonPrefixes []string
 }
 
-func (v *Volume) loadCors() (cors *CORSConfiguration) {
-	v.om.corsLock.RLock()
-	cors = v.om.corsConfig
-	v.om.corsLock.RUnlock()
+func (v *Volume) loadCors() (cors *CORSConfiguration, err error) {
+	if v.om.strict {
+		if cors, err = v.loadBucketCors(); err != nil { // if cors isn't exist, it may return nil. So it needs to be cleared manually when deleting cors.
+			log.LogErrorf("load cors configuration err: volume[%v]", v.name)
+			return nil, err
+		}
+	} else {
+		v.om.corsLock.RLock()
+		cors = v.om.corsConfig
+		v.om.corsLock.RUnlock()
+	}
 	return
 }
 
@@ -208,25 +219,19 @@ func (v *Volume) loadOSSMeta() {
 	if policy, err = v.loadBucketPolicy(); err != nil {
 		return
 	}
-	if policy != nil {
-		v.storePolicy(policy)
-	}
+	v.storePolicy(policy)
 
 	var acl *AccessControlPolicy
 	if acl, err = v.loadBucketACL(); err != nil {
 		return
 	}
-	if acl != nil {
-		v.storeACL(acl)
-	}
+	v.storeACL(acl)
 
 	var cors *CORSConfiguration
 	if cors, err = v.loadBucketCors(); err != nil { // if cors isn't exist, it may return nil. So it needs to be cleared manually when deleting cors.
 		return
 	}
-	if cors != nil {
-		v.storeCors(cors)
-	}
+	v.storeCors(cors)
 }
 
 func (v *Volume) Name() string {
@@ -249,6 +254,9 @@ func (v *Volume) loadBucketPolicy() (policy *Policy, err error) {
 		log.LogErrorf("loadBucketPolicy: load bucket policy fail: Volume(%v) err(%v)", v.name, err)
 		return
 	}
+	if len(data) == 0 {
+		return
+	}
 	policy = &Policy{}
 	if err = json.Unmarshal(data, policy); err != nil {
 		return
@@ -261,6 +269,9 @@ func (v *Volume) loadBucketACL() (acp *AccessControlPolicy, err error) {
 	if raw, err = v.store.Get(v.name, bucketRootPath, XAttrKeyOSSACL); err != nil {
 		return
 	}
+	if len(raw) == 0 {
+		return
+	}
 	acp = &AccessControlPolicy{}
 	if err = xml.Unmarshal(raw, acp); err != nil {
 		return
@@ -271,6 +282,9 @@ func (v *Volume) loadBucketACL() (acp *AccessControlPolicy, err error) {
 func (v *Volume) loadBucketCors() (configuration *CORSConfiguration, err error) {
 	var raw []byte
 	if raw, err = v.store.Get(v.name, bucketRootPath, XAttrKeyOSSCORS); err != nil {
+		return
+	}
+	if len(raw) == 0 {
 		return
 	}
 	configuration = &CORSConfiguration{}
@@ -2334,6 +2348,7 @@ func NewVolume(config *VolumeConfig) (*Volume, error) {
 			}
 		},
 	}
+	v.om.strict = config.MetaStrict
 	go v.syncOSSMeta()
 	return v, nil
 }

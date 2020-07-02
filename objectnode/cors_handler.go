@@ -30,7 +30,11 @@ func (o *ObjectNode) getBucketCorsHandler(w http.ResponseWriter, r *http.Request
 
 	var output = CORSConfiguration{}
 
-	cors := vol.loadCors()
+	var cors *CORSConfiguration
+	if cors, err = vol.loadCors(); err != nil {
+		_ = InternalErrorCode(err).ServeResponse(w, r)
+		return
+	}
 	if cors != nil {
 		output.CORSRule = cors.CORSRule
 	}
