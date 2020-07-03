@@ -154,7 +154,6 @@ func (loader *VolumeLoader) loadVolume(volName string) (*Volume, error) {
 		loader.volMu.Unlock()
 		release()
 
-		volume.loadOSSMeta()
 	}
 
 	return volume, nil
