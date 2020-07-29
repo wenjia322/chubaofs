@@ -90,5 +90,6 @@ func (m *MetaNode) handlePacket(conn net.Conn, p *Packet,
 	remoteAddr string) (err error) {
 	// Handle request
 	err = m.metadataManager.HandleMetadataOperation(conn, p, remoteAddr)
+
 	return
 }

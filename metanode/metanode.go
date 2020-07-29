@@ -28,6 +28,7 @@ import (
 	"github.com/chubaofs/chubaofs/proto"
 	"github.com/chubaofs/chubaofs/raftstore"
 	"github.com/chubaofs/chubaofs/util"
+	"github.com/chubaofs/chubaofs/util/cdb"
 	"github.com/chubaofs/chubaofs/util/config"
 	"github.com/chubaofs/chubaofs/util/errors"
 	"github.com/chubaofs/chubaofs/util/exporter"
@@ -55,6 +56,7 @@ type MetaNode struct {
 	raftHeartbeatPort string
 	raftReplicatePort string
 	zoneName          string
+	cdbStore          *cdb.CdbStore
 	httpStopC         chan uint8
 
 	control common.Control
@@ -133,6 +135,8 @@ func doStart(s common.Server, cfg *config.Config) (err error) {
 		return
 	}
 
+	m.initCdbStore(cfg)
+
 	if err = m.startServer(); err != nil {
 		return
 	}
@@ -150,6 +154,9 @@ func doShutdown(s common.Server) {
 	m.stopServer()
 	m.stopMetaManager()
 	m.stopRaftServer()
+	if m.cdbStore != nil {
+		m.stopInsertDB()
+	}
 }
 
 // Sync blocks the invoker's goroutine until the meta node shuts down.

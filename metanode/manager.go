@@ -75,6 +75,8 @@ func (m *metadataManager) HandleMetadataOperation(conn net.Conn, p *Packet,
 	metric := exporter.NewTPCnt(p.GetOpMsg())
 	defer metric.Set(err)
 
+	m.metaNode.gatherOpCount(p)
+
 	switch p.Opcode {
 	case proto.OpMetaCreateInode:
 		err = m.opCreateInode(conn, p, remoteAddr)
@@ -170,6 +172,7 @@ func (m *metadataManager) HandleMetadataOperation(conn net.Conn, p *Packet,
 		err = errors.NewErrorf("%s [%s] req: %d - %s", remoteAddr, p.GetOpMsg(),
 			p.GetReqID(), err.Error())
 	}
+	// todo what is leader?
 	return
 }
 
