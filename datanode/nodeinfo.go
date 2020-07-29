@@ -23,7 +23,7 @@ func (m *DataNode) startUpdateNodeInfo() {
 	for {
 		select {
 		case <-nodeInfoStopC:
-			log.LogInfo("metanode nodeinfo goroutine stopped")
+			log.LogInfo("datanode nodeinfo goroutine stopped")
 			return
 		case <-ticker.C:
 			m.updateNodeInfo()

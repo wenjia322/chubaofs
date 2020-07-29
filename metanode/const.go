@@ -147,6 +147,7 @@ const (
 	cfgDeleteBatchCount  = "deleteBatchCount"
 	cfgTotalMem          = "totalMem"
 	cfgZoneName          = "zoneName"
+	cfgDBAddr            = "dbAddr"
 
 	metaNodeDeleteBatchCountKey = "batchCount"
 )

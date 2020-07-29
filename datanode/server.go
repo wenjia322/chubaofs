@@ -35,6 +35,7 @@ import (
 	"github.com/chubaofs/chubaofs/repl"
 	masterSDK "github.com/chubaofs/chubaofs/sdk/master"
 	"github.com/chubaofs/chubaofs/util"
+	"github.com/chubaofs/chubaofs/util/cdb"
 	"github.com/chubaofs/chubaofs/util/config"
 	"github.com/chubaofs/chubaofs/util/exporter"
 	"github.com/chubaofs/chubaofs/util/log"
@@ -72,6 +73,7 @@ const (
 	ConfigKeyRaftDir       = "raftDir"       // string
 	ConfigKeyRaftHeartbeat = "raftHeartbeat" // string
 	ConfigKeyRaftReplica   = "raftReplica"   // string
+	ConfigKeyDBAddr        = "dbAddr"        // string
 )
 
 // DataNode defines the structure of a data node.
@@ -87,6 +89,7 @@ type DataNode struct {
 	raftHeartbeat   string
 	raftReplica     string
 	raftStore       raftstore.RaftStore
+	cdbStore        *cdb.CdbStore
 
 	tcpListener net.Listener
 	stopC       chan bool
@@ -147,6 +150,9 @@ func doStart(server common.Server, cfg *config.Config) (err error) {
 		return
 	}
 
+	// init ChubaoDB store
+	s.initCdbStore(cfg)
+
 	// start tcp listening
 	if err = s.startTCPService(); err != nil {
 		return
@@ -168,6 +174,9 @@ func doShutdown(server common.Server) {
 	s.stopUpdateNodeInfo()
 	s.stopTCPService()
 	s.stopRaftServer()
+	if s.cdbStore != nil {
+		s.stopInsertDB()
+	}
 }
 
 func (s *DataNode) parseConfig(cfg *config.Config) (err error) {

@@ -41,6 +41,7 @@ func (s *DataNode) OperatePacket(p *repl.Packet, c *net.TCPConn) (err error) {
 	sz := p.Size
 	tpObject := exporter.NewTPCnt(p.GetOpMsg())
 	start := time.Now().UnixNano()
+	s.gatherOpCount(p)
 	defer func() {
 		resultSize := p.Size
 		p.Size = sz
@@ -364,13 +365,12 @@ func (s *DataNode) handleBatchMarkDeletePacket(p *repl.Packet, c net.Conn) {
 		for _, ext := range exts {
 			DeleteLimiterWait()
 			log.LogInfof(fmt.Sprintf("recive DeleteExtent (%v) from (%v)", ext, c.RemoteAddr().String()))
-			err=store.MarkDelete(ext.ExtentId, int64(ext.ExtentOffset), int64(ext.Size))
-			if err!=nil {
+			err = store.MarkDelete(ext.ExtentId, int64(ext.ExtentOffset), int64(ext.Size))
+			if err != nil {
 				return
 			}
 		}
 	}
-
 
 	return
 }
