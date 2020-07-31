@@ -91,7 +91,7 @@ func (cdb *CdbStore) CountOp(vol, op string) {
 	cdb.VolOpCount.Store(vol, opMap)
 }
 
-func (cdb *CdbStore) CountOpForPid(vol string, pid uint64, op string) {
+func (cdb *CdbStore) CountOpForPid(vol, pid interface{}, op string) {
 	var opMap map[string]int
 	key := fmt.Sprintf("%v_%v", vol, pid)
 	if v, ok := cdb.VolOpCount.Load(key); ok {

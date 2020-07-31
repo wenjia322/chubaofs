@@ -55,7 +55,7 @@ func (m *MetaNode) gatherOpCount(p *Packet) {
 		}
 		if vol, exist1 := req["vol"]; exist1 {
 			if pid, exist2 := req["pid"]; exist2 {
-				m.cdbStore.CountOpForPid(vol.(string), pid.(uint64), p.GetOpMsg())
+				m.cdbStore.CountOpForPid(vol, pid, p.GetOpMsg())
 			}
 		}
 	}
