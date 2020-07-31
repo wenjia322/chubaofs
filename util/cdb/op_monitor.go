@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -18,7 +19,8 @@ const (
 	MetaType NodeType = "meta"
 	DataType NodeType = "data"
 
-	FieldVol  = "vol"
+	FieldVol  = "vol_name"
+	FieldPid  = "partition_id"
 	FieldTime = "insert_time"
 )
 
@@ -79,6 +81,8 @@ func (cdb *CdbStore) CountOp(vol, op string) {
 			opMap = NewMetaOpCountMap()
 		case DataType:
 			opMap = NewDataOpCountMap()
+		default:
+			return
 		}
 	}
 	if count, exist := opMap[op]; exist {
@@ -87,8 +91,29 @@ func (cdb *CdbStore) CountOp(vol, op string) {
 	cdb.VolOpCount.Store(vol, opMap)
 }
 
+func (cdb *CdbStore) CountOpForPid(vol string, pid uint64, op string) {
+	var opMap map[string]int
+	key := fmt.Sprintf("%v_%v", vol, pid)
+	if v, ok := cdb.VolOpCount.Load(key); ok {
+		opMap = v.(map[string]int)
+	} else {
+		switch cdb.Type {
+		case MetaType:
+			opMap = NewMetaOpCountMap()
+		case DataType:
+			opMap = NewDataOpCountMap()
+		default:
+			return
+		}
+	}
+	if count, exist := opMap[op]; exist {
+		opMap[op] = count + 1
+	}
+	cdb.VolOpCount.Store(key, opMap)
+}
+
 func clearOpCount(opCountMap map[string]int) {
-	for k, _ := range opCountMap {
+	for k := range opCountMap {
 		opCountMap[k] = 0
 	}
 }
@@ -100,14 +125,16 @@ func (cdb *CdbStore) InsertCDB(nodeID uint64) {
 	)
 	timestamp := time.Now().Unix()
 	cdb.VolOpCount.Range(func(key, value interface{}) bool {
-		id := fmt.Sprintf("%v_%v_%v", key, nodeID, timestamp)
+		id := fmt.Sprintf("%v_%v", key, timestamp)
 		url := fmt.Sprintf("http://%v/put/%v/%v", cdb.Addr, cdb.Table, id)
 		ops := value.(map[string]int)
 		item := make(map[string]interface{})
 		for k, v := range ops {
 			item[k] = v
 		}
-		item[FieldVol] = key
+		vol, pid := getVolAndPid(key.(string))
+		item[FieldVol] = vol
+		item[FieldPid] = pid
 		item[FieldTime] = timestamp
 		clearOpCount(ops)
 		if body, err = json.Marshal(item); err != nil {
@@ -117,6 +144,11 @@ func (cdb *CdbStore) InsertCDB(nodeID uint64) {
 		sendRequest(url, body)
 		return true
 	})
+}
+
+func getVolAndPid(key string) (vol, pid string) {
+	index := strings.Index(key, "_")
+	return key[:index], key[index+1:]
 }
 
 func sendRequest(url string, body []byte) {
@@ -133,9 +165,6 @@ func sendRequest(url string, body []byte) {
 	}
 
 	if do.StatusCode != 200 {
-		resBody := do.Body
-		buf := new(bytes.Buffer)
-		buf.ReadFrom(resBody)
 		log.LogWarnf("send chubaodb insert request[%s]: status code: [%v]", url, do.StatusCode)
 		return
 	}

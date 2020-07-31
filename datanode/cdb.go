@@ -31,7 +31,7 @@ func (s *DataNode) initCdbStore(cfg *config.Config) {
 func (s *DataNode) gatherOpCount(p *repl.Packet) {
 	if s.cdbStore != nil && p.Object != nil {
 		dp := p.Object.(*DataPartition)
-		s.cdbStore.CountOp(dp.volumeID, p.GetOpMsg())
+		s.cdbStore.CountOpForPid(dp.volumeID, dp.partitionID, p.GetOpMsg())
 	}
 }
 

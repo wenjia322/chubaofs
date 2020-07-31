@@ -53,8 +53,10 @@ func (m *MetaNode) gatherOpCount(p *Packet) {
 			log.LogErrorf("op monitor: json unmarshal req err[%v], data[%v]", err, string(p.Data))
 			return
 		}
-		if vol, exist := req["vol"]; exist {
-			m.cdbStore.CountOp(vol.(string), p.GetOpMsg())
+		if vol, exist1 := req["vol"]; exist1 {
+			if pid, exist2 := req["pid"]; exist2 {
+				m.cdbStore.CountOpForPid(vol.(string), pid.(uint64), p.GetOpMsg())
+			}
 		}
 	}
 	return
