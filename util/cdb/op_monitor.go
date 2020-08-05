@@ -6,10 +6,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"strings"
 	"sync"
 	"time"
 
+	"github.com/chubaofs/chubaofs/proto"
 	"github.com/chubaofs/chubaofs/util/log"
 )
 
@@ -31,44 +31,63 @@ type CdbStore struct {
 	VolOpCount sync.Map // key: "vol" string, value: op count map[string]int
 }
 
+type volPidOp struct {
+	vol     string
+	pid     string
+	opCount map[string]int
+	hits    int // Statistics
+}
+
+var DataOps = map[uint8]string{
+	proto.OpCreateExtent:       "OpCreateExtent",
+	proto.OpBatchDeleteExtent:  "OpBatchDeleteExtent",
+	proto.OpStreamRead:         "OpStreamRead",
+	proto.OpRead:               "Read",
+	proto.OpStreamFollowerRead: "OpStreamFollowerRead",
+	proto.OpWrite:              "OpWrite",
+	proto.OpRandomWrite:        "OpRandomWrite",
+	proto.OpSyncRandomWrite:    "OpSyncRandomWrite",
+	proto.OpSyncWrite:          "OpSyncWrite",
+	proto.OpMarkDelete:         "OpMarkDelete",
+}
+
+var MetaOps = map[uint8]string{
+	proto.OpMetaCreateInode:   "OpMetaCreateInode",
+	proto.OpMetaUnlinkInode:   "OpMetaUnlinkInode",
+	proto.OpMetaCreateDentry:  "OpMetaCreateDentry",
+	proto.OpMetaDeleteDentry:  "OpMetaDeleteDentry",
+	proto.OpMetaLookup:        "OpMetaLookup",
+	proto.OpMetaReadDir:       "OpMetaReadDir",
+	proto.OpMetaInodeGet:      "OpMetaInodeGet",
+	proto.OpMetaBatchInodeGet: "OpMetaBatchInodeGet",
+	proto.OpMetaExtentsAdd:    "OpMetaExtentsAdd",
+	proto.OpMetaExtentsDel:    "OpMetaExtentsDel",
+	proto.OpMetaExtentsList:   "OpMetaExtentsList",
+	proto.OpMetaUpdateDentry:  "OpMetaUpdateDentry",
+	proto.OpMetaTruncate:      "OpMetaTruncate",
+	proto.OpMetaLinkInode:     "OpMetaLinkInode",
+	proto.OpMetaEvictInode:    "OpMetaEvictInode",
+	proto.OpMetaSetattr:       "OpMetaSetattr",
+}
+
 func NewCdbStore(addr, table string, nodeType NodeType) *CdbStore {
 	return &CdbStore{Addr: addr, Table: table, Type: nodeType}
 }
 
 func NewDataOpCountMap() map[string]int {
-	return map[string]int{
-		"OpCreateExtent":       0,
-		"OpMarkDelete":         0,
-		"OpWrite":              0,
-		"OpRead":               0,
-		"OpStreamRead":         0,
-		"OpStreamFollowerRead": 0,
-		"OpRandomWrite":        0,
-		"OpSyncRandomWrite":    0,
-		"OpSyncWrite":          0,
-		"OpBatchDeleteExtent":  0,
+	m := make(map[string]int)
+	for _, msg := range DataOps {
+		m[msg] = 0
 	}
+	return m
 }
 
 func NewMetaOpCountMap() map[string]int {
-	return map[string]int{
-		"OpMetaCreateInode":   0,
-		"OpMetaUnlinkInode":   0,
-		"OpMetaCreateDentry":  0,
-		"OpMetaDeleteDentry":  0,
-		"OpMetaLookup":        0,
-		"OpMetaReadDir":       0,
-		"OpMetaInodeGet":      0,
-		"OpMetaBatchInodeGet": 0,
-		"OpMetaExtentsAdd":    0,
-		"OpMetaExtentsDel":    0,
-		"OpMetaExtentsList":   0,
-		"OpMetaUpdateDentry":  0,
-		"OpMetaTruncate":      0,
-		"OpMetaLinkInode":     0,
-		"OpMetaEvictInode":    0,
-		"OpMetaSetattr":       0,
+	m := make(map[string]int)
+	for _, msg := range MetaOps {
+		m[msg] = 0
 	}
+	return m
 }
 
 func (cdb *CdbStore) CountOp(vol, op string) {
@@ -92,24 +111,27 @@ func (cdb *CdbStore) CountOp(vol, op string) {
 }
 
 func (cdb *CdbStore) CountOpForPid(vol, pid interface{}, op string) {
-	var opMap map[string]int
+	var volOp *volPidOp
 	key := fmt.Sprintf("%v_%v", vol, pid)
+	partitionId := fmt.Sprintf("%v", pid)
 	if v, ok := cdb.VolOpCount.Load(key); ok {
-		opMap = v.(map[string]int)
+		volOp = v.(*volPidOp)
 	} else {
+		volOp = &volPidOp{vol: vol.(string), pid: partitionId, hits: 0}
 		switch cdb.Type {
 		case MetaType:
-			opMap = NewMetaOpCountMap()
+			volOp.opCount = NewMetaOpCountMap()
 		case DataType:
-			opMap = NewDataOpCountMap()
+			volOp.opCount = NewDataOpCountMap()
 		default:
 			return
 		}
 	}
-	if count, exist := opMap[op]; exist {
-		opMap[op] = count + 1
+	if count, exist := volOp.opCount[op]; exist {
+		volOp.opCount[op] = count + 1
 	}
-	cdb.VolOpCount.Store(key, opMap)
+	volOp.hits = volOp.hits + 1
+	cdb.VolOpCount.Store(key, volOp)
 }
 
 func clearOpCount(opCountMap map[string]int) {
@@ -118,7 +140,7 @@ func clearOpCount(opCountMap map[string]int) {
 	}
 }
 
-func (cdb *CdbStore) InsertCDB(nodeID uint64) {
+func (cdb *CdbStore) InsertCDB() {
 	var (
 		body []byte
 		err  error
@@ -127,16 +149,15 @@ func (cdb *CdbStore) InsertCDB(nodeID uint64) {
 	cdb.VolOpCount.Range(func(key, value interface{}) bool {
 		id := fmt.Sprintf("%v_%v", key, timestamp)
 		url := fmt.Sprintf("http://%v/put/%v/%v", cdb.Addr, cdb.Table, id)
-		ops := value.(map[string]int)
+		volOp := value.(*volPidOp)
 		item := make(map[string]interface{})
-		for k, v := range ops {
+		for k, v := range volOp.opCount {
 			item[k] = v
 		}
-		vol, pid := getVolAndPid(key.(string))
-		item[FieldVol] = vol
-		item[FieldPid] = pid
+		item[FieldVol] = volOp.vol
+		item[FieldPid] = volOp.pid
 		item[FieldTime] = timestamp
-		clearOpCount(ops)
+		clearOpCount(volOp.opCount)
 		if body, err = json.Marshal(item); err != nil {
 			log.LogErrorf("insert chubaodb: json marshal err[%v], data[%v]", err, body)
 			return true
@@ -146,9 +167,16 @@ func (cdb *CdbStore) InsertCDB(nodeID uint64) {
 	})
 }
 
-func getVolAndPid(key string) (vol, pid string) {
-	index := strings.Index(key, "_")
-	return key[:index], key[index+1:]
+func (cdb *CdbStore) ClearVol() {
+	cdb.VolOpCount.Range(func(key, value interface{}) bool {
+		volOp := value.(*volPidOp)
+		if volOp.hits == 0 {
+			cdb.VolOpCount.Delete(key)
+		} else {
+			volOp.hits = 0
+		}
+		return true
+	})
 }
 
 func sendRequest(url string, body []byte) {

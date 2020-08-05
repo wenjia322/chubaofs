@@ -156,6 +156,7 @@ func doShutdown(s common.Server) {
 	m.stopRaftServer()
 	if m.cdbStore != nil {
 		m.stopInsertDB()
+		m.stopClearVolOp()
 	}
 }
 
