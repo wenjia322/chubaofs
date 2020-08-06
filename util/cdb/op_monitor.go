@@ -19,15 +19,17 @@ const (
 	MetaType NodeType = "meta"
 	DataType NodeType = "data"
 
-	FieldVol  = "vol_name"
-	FieldPid  = "partition_id"
-	FieldTime = "insert_time"
+	FieldVol    = "vol_name"
+	FieldPid    = "partition_id"
+	FieldTime   = "insert_time"
+	FieldNodeID = "node_id"
 )
 
 type CdbStore struct {
 	Addr       string
 	Table      string
 	Type       NodeType
+	NodeID     uint64
 	VolOpCount sync.Map // key: "vol" string, value: op count map[string]int
 }
 
@@ -70,8 +72,8 @@ var MetaOps = map[uint8]string{
 	proto.OpMetaSetattr:       "OpMetaSetattr",
 }
 
-func NewCdbStore(addr, table string, nodeType NodeType) *CdbStore {
-	return &CdbStore{Addr: addr, Table: table, Type: nodeType}
+func NewCdbStore(addr, table string, nodeType NodeType, id uint64) *CdbStore {
+	return &CdbStore{Addr: addr, Table: table, Type: nodeType, NodeID: id}
 }
 
 func NewDataOpCountMap() map[string]int {
@@ -147,7 +149,7 @@ func (cdb *CdbStore) InsertCDB() {
 	)
 	timestamp := time.Now().Unix()
 	cdb.VolOpCount.Range(func(key, value interface{}) bool {
-		id := fmt.Sprintf("%v_%v", key, timestamp)
+		id := fmt.Sprintf("%v_%v_%v", key, cdb.NodeID, timestamp)
 		url := fmt.Sprintf("http://%v/put/%v/%v", cdb.Addr, cdb.Table, id)
 		volOp := value.(*volPidOp)
 		item := make(map[string]interface{})
@@ -157,6 +159,7 @@ func (cdb *CdbStore) InsertCDB() {
 		item[FieldVol] = volOp.vol
 		item[FieldPid] = volOp.pid
 		item[FieldTime] = timestamp
+		item[FieldNodeID] = cdb.NodeID
 		clearOpCount(volOp.opCount)
 		if body, err = json.Marshal(item); err != nil {
 			log.LogErrorf("insert chubaodb: json marshal err[%v], data[%v]", err, body)

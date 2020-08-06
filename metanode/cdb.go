@@ -24,7 +24,7 @@ func (m *MetaNode) initCdbStore(cfg *config.Config) {
 	dbAddr := cfg.GetString(cfgDBAddr)
 	if dbAddr != "" {
 		table := fmt.Sprintf("%v_%v", m.clusterId, cdb.MetaType)
-		m.cdbStore = cdb.NewCdbStore(dbAddr, table, cdb.MetaType)
+		m.cdbStore = cdb.NewCdbStore(dbAddr, table, cdb.MetaType, m.nodeId)
 		go m.startInsertDB()
 		go m.startClearVolOp()
 	}
