@@ -224,7 +224,7 @@ func (c *Cluster) checkAddMpReplica(badAddr string, partitionID uint64) (isSkip 
 	if int(partition.ReplicaNum) == len(partition.Replicas) {
 		return
 	}
-	if _, err := partition.getMetaReplicaLeader(); err != nil {
+	if _, err = partition.getMetaReplicaLeader(); err != nil {
 		log.LogWarnf(fmt.Sprintf("Action[checkAddMpReplica], partitionID[%v], no leader", partitionID))
 		return
 	}

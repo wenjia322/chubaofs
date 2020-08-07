@@ -90,7 +90,7 @@ func (c *Cluster) fullFillReplica() {
 		for _, partitionID := range badDataPartitionIds {
 			var isSkip bool
 			var err    error
-			if isSkip, err = c.checkAddReplica(badDiskAddr, partitionID); err != nil {
+			if isSkip, err = c.checkAddDataReplica(badDiskAddr, partitionID); err != nil {
 				log.LogWarnf(fmt.Sprintf("action[fullFillReplica], clusterID[%v], partitionID[%v], err[%v] ", c.Name, partitionID, err))
 			}
 			if !isSkip {
@@ -104,7 +104,7 @@ func (c *Cluster) fullFillReplica() {
 
 }
 
-func (c *Cluster) checkAddReplica(badDiskAddr string, partitionID uint64) (isSkip bool, err error){
+func (c *Cluster) checkAddDataReplica(badDiskAddr string, partitionID uint64) (isSkip bool, err error){
 	var(
 		newAddr    string
 		partition  *DataPartition
