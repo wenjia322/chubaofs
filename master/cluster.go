@@ -1155,7 +1155,6 @@ errHandler:
 func (c *Cluster) resetDataPartition(dp *DataPartition) (err error) {
 	var (
 		badAddresses    []string
-		newAddr         string
 		msg             string
 	)
 	dp.RLock()
@@ -1185,15 +1184,9 @@ func (c *Cluster) resetDataPartition(dp *DataPartition) (err error) {
 		goto errHandler
 	}
 	for _, address := range badAddresses {
-		if newAddr, err = c.chooseTargetDataPartitionHost(address, dp); err != nil {
-			goto errHandler
-		}
-		if err = c.addDataReplica(dp, newAddr); err != nil {
-			goto errHandler
-		}
 		dp.Status = proto.ReadOnly
 		dp.isRecover = true
-		c.putBadDataPartitionIDs(nil, newAddr, dp.PartitionID)
+		c.putBadDataPartitionIDs(nil, address, dp.PartitionID)
 	}
 	log.LogWarnf("clusterID[%v] partitionID:%v  badAddresses:%v reset success,PersistenceHosts:[%v]",
 		c.Name, dp.PartitionID, badAddresses, dp.Hosts)
@@ -1293,6 +1286,7 @@ func (c *Cluster) addDataReplica(dp *DataPartition, addr string) (err error) {
 		return
 	}
 	addPeer := proto.Peer{ID: dataNode.ID, Addr: addr}
+	// Todo: What if adding raft member success but creating replica failed?
 	if err = c.addDataPartitionRaftMember(dp, addPeer); err != nil {
 		return
 	}
