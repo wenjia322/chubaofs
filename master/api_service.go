@@ -380,7 +380,11 @@ func (m *Server) addDataReplica(w http.ResponseWriter, r *http.Request) {
 		sendErrReply(w, r, newErrHTTPReply(proto.ErrDataPartitionNotExists))
 		return
 	}
-
+	if dp.isRecover {
+		err = fmt.Errorf("vol[%v],data partition[%v] is recovering, can not add replica to addr [%v]", dp.VolName, dp.PartitionID, addr)
+		sendErrReply(w, r, newErrHTTPReply(err))
+		return
+	}
 	if err = m.cluster.addDataReplica(dp, addr); err != nil {
 		sendErrReply(w, r, newErrHTTPReply(err))
 		return
@@ -437,7 +441,11 @@ func (m *Server) addMetaReplica(w http.ResponseWriter, r *http.Request) {
 		sendErrReply(w, r, newErrHTTPReply(proto.ErrMetaPartitionNotExists))
 		return
 	}
-
+	if mp.IsRecover {
+		err = fmt.Errorf("vol[%v], meta partition[%v] is recovering, can not add replica to addr [%v]", mp.volName, mp.PartitionID, addr)
+		sendErrReply(w, r, newErrHTTPReply(err))
+		return
+	}
 	if err = m.cluster.addMetaReplica(mp, addr); err != nil {
 		sendErrReply(w, r, newErrHTTPReply(err))
 		return

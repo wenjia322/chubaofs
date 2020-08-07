@@ -43,10 +43,10 @@ func (c *Cluster) checkDiskRecoveryProgress() {
 		}
 	}()
 	var diff float64
+	c.fullFillReplica()
 	c.BadDataPartitionIds.Range(func(key, value interface{}) bool {
 		badDataPartitionIds := value.([]uint64)
 		newBadDpIds := make([]uint64, 0)
-		c.fullFillReplica()
 		for _, partitionID := range badDataPartitionIds {
 			partition, err := c.getDataPartitionByID(partitionID)
 			if err != nil {
@@ -56,11 +56,11 @@ func (c *Cluster) checkDiskRecoveryProgress() {
 			if err != nil {
 				continue
 			}
-			if len(partition.Replicas) == 0 || len(partition.Replicas) < int(vol.dpReplicaNum) {
+			if len(partition.Replicas) == 0 {
 				continue
 			}
 			diff = partition.getMinus()
-			if diff < util.GB {
+			if diff < util.GB && len(partition.Replicas) >= int(vol.dpReplicaNum){
 				partition.isRecover = false
 				partition.RLock()
 				c.syncUpdateDataPartition(partition)
@@ -131,6 +131,7 @@ func (c *Cluster) checkAddReplica(badDiskAddr string, partitionID uint64) (isSki
 	}
 	return
 }
+
 func (c *Cluster) decommissionDisk(dataNode *DataNode, badDiskPath string, badPartitions []*DataPartition) (err error) {
 	msg := fmt.Sprintf("action[decommissionDisk], Node[%v] OffLine,disk[%v]", dataNode.Addr, badDiskPath)
 	log.LogWarn(msg)

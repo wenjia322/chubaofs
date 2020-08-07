@@ -559,7 +559,7 @@ func (c *Cluster) updateBadDataPartitionIds(badDpIds map[string]interface{}) {
 
 func (c *Cluster) updateBadMetaPartitionIds(badMpIds map[string]interface{}) {
 	for badAddr := range badMpIds {
-		c.BadDataPartitionIds.Store(badAddr, badMpIds[badAddr])
+		c.BadMetaPartitionIds.Store(badAddr, badMpIds[badAddr])
 	}
 }
 

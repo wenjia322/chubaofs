@@ -303,13 +303,6 @@ func (c *Cluster) resetMetaPartition(mp *MetaPartition) (err error) {
 		goto errHandler
 	}
 	for _, nodeAddr := range badAddresses {
-		var newPeer proto.Peer
-		if newPeer, err = c.chooseTargetMetaPartitionHost(nodeAddr, mp); err != nil {
-			goto errHandler
-		}
-		if err = c.addMetaReplica(mp, newPeer.Addr); err != nil {
-			goto errHandler
-		}
 		mp.IsRecover = true
 		mp.Status = proto.ReadOnly
 		c.putBadMetaPartitions(nodeAddr, mp.PartitionID)
