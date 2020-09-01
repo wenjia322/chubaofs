@@ -18,8 +18,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"net"
 	syslog "log"
+	"net"
 	_ "net/http/pprof"
 	"os"
 	"path"
@@ -131,6 +131,10 @@ func (m *metadataManager) HandleMetadataOperation(conn net.Conn, p *Packet,
 		err = m.opAddMetaPartitionRaftMember(conn, p, remoteAddr)
 	case proto.OpRemoveMetaPartitionRaftMember:
 		err = m.opRemoveMetaPartitionRaftMember(conn, p, remoteAddr)
+	case proto.OpAddMetaPartitionRaftLearner:
+		err = m.opAddMetaPartitionRaftLearner(conn, p, remoteAddr)
+	case proto.OpPromoteMetaPartitionRaftLearner:
+		err = m.opPromoteMetaPartitionRaftLearner(conn, p, remoteAddr)
 	case proto.OpMetaPartitionTryToLeader:
 		err = m.opMetaPartitionTryToLeader(conn, p, remoteAddr)
 	case proto.OpMetaBatchInodeGet:
@@ -376,6 +380,7 @@ func (m *metadataManager) createPartition(request *proto.CreateMetaPartitionRequ
 		End:         request.End,
 		Cursor:      request.Start,
 		Peers:       request.Members,
+		Learners:    request.Learners,
 		RaftStore:   m.raftStore,
 		NodeId:      m.nodeId,
 		RootDir:     path.Join(m.rootDir, partitionPrefix+partitionId),

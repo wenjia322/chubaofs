@@ -55,6 +55,7 @@ const (
 	descriptionKey          = "description"
 	dpSelectorNameKey       = "dpSelectorName"
 	dpSelectorParmKey       = "dpSelectorParm"
+	autoKey                 = "auto"
 )
 
 const (
@@ -96,6 +97,7 @@ const (
 	retrySendSyncTaskInternal                    = 3 * time.Second
 	defaultRangeOfCountDifferencesAllowed        = 50
 	defaultMinusOfMaxInodeID                     = 1000
+	defaultLearnerPromThreshold                  = 90
 )
 
 const (

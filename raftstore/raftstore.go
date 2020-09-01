@@ -16,12 +16,12 @@ package raftstore
 
 import (
 	"fmt"
-	syslog "log"
 	"github.com/tiglabs/raft"
 	"github.com/tiglabs/raft/logger"
 	"github.com/tiglabs/raft/proto"
 	"github.com/tiglabs/raft/storage/wal"
 	raftlog "github.com/tiglabs/raft/util/log"
+	syslog "log"
 	"os"
 	"path"
 	"strconv"
@@ -178,6 +178,7 @@ func (s *raftStore) CreatePartition(cfg *PartitionConfig) (p Partition, err erro
 		Storage:      ws,
 		StateMachine: cfg.SM,
 		Applied:      cfg.Applied,
+		Learners:     cfg.Learners,
 	}
 	if err = s.raftServer.CreateRaft(rc); err != nil {
 		return

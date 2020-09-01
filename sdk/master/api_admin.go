@@ -63,10 +63,10 @@ func (api *AdminAPI) ListZones() (zoneViews []*proto.ZoneView, err error) {
 	}
 	return
 }
-func (api *AdminAPI) Topo() (topo *proto.TopologyView, err error ){
+func (api *AdminAPI) Topo() (topo *proto.TopologyView, err error) {
 	var buf []byte
 	var request = newAPIRequest(http.MethodGet, proto.GetTopologyView)
-	if buf, err = api.mc.serveRequest(request); err != nil{
+	if buf, err = api.mc.serveRequest(request); err != nil {
 		return
 	}
 	topo = &proto.TopologyView{}
@@ -189,6 +189,27 @@ func (api *AdminAPI) DeleteMetaReplica(metaPartitionID uint64, nodeAddr string) 
 
 func (api *AdminAPI) AddMetaReplica(metaPartitionID uint64, nodeAddr string) (err error) {
 	var request = newAPIRequest(http.MethodGet, proto.AdminAddMetaReplica)
+	request.addParam("id", strconv.FormatUint(metaPartitionID, 10))
+	request.addParam("addr", nodeAddr)
+	if _, err = api.mc.serveRequest(request); err != nil {
+		return
+	}
+	return
+}
+
+func (api *AdminAPI) AddMetaReplicaLearner(metaPartitionID uint64, nodeAddr string, autoPromote bool) (err error) {
+	var request = newAPIRequest(http.MethodGet, proto.AdminAddMetaReplicaLearner)
+	request.addParam("id", strconv.FormatUint(metaPartitionID, 10))
+	request.addParam("addr", nodeAddr)
+	request.addParam("auto", strconv.FormatBool(autoPromote))
+	if _, err = api.mc.serveRequest(request); err != nil {
+		return
+	}
+	return
+}
+
+func (api *AdminAPI) PromoteMetaReplicaLearner(metaPartitionID uint64, nodeAddr string) (err error) {
+	var request = newAPIRequest(http.MethodGet, proto.AdminPromoteMetaReplicaLearner)
 	request.addParam("id", strconv.FormatUint(metaPartitionID, 10))
 	request.addParam("addr", nodeAddr)
 	if _, err = api.mc.serveRequest(request); err != nil {
