@@ -36,6 +36,7 @@ type ReplicaStatus struct {
 	Active      bool
 	LastActive  time.Time
 	Inflight    int
+	IsLearner	bool
 }
 
 // Status raft status

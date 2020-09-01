@@ -37,6 +37,7 @@ type DataPartition struct {
 	Replicas       []*DataReplica
 	Hosts          []string // host addresses
 	Peers          []proto.Peer
+	Learners       []uint64
 	offlineMutex   sync.RWMutex
 	sync.RWMutex
 	total                   uint64
@@ -58,6 +59,7 @@ func newDataPartition(ID uint64, replicaNum uint8, volName string, volID uint64)
 	partition.PartitionID = ID
 	partition.Hosts = make([]string, 0)
 	partition.Peers = make([]proto.Peer, 0)
+	partition.Learners = make([]uint64, 0)
 	partition.Replicas = make([]*DataReplica, 0)
 	partition.FileInCoreMap = make(map[string]*FileInCore, 0)
 	partition.FilesWithMissingReplica = make(map[string]int64)
@@ -127,10 +129,15 @@ func (partition *DataPartition) createTaskToResetRaftMembers(newPeers []proto.Pe
 	return
 }
 
-func (partition *DataPartition) createTaskToCreateDataPartition(addr string, dataPartitionSize uint64, peers []proto.Peer, hosts []string, createType int) (task *proto.AdminTask) {
+func (partition *DataPartition) createTaskToPromoteRaftLearner(promotePeer proto.Peer, leaderAddr string) (task *proto.AdminTask, err error) {
+	task = proto.NewAdminTask(proto.OpPromoteDataPartitionRaftLearner, leaderAddr, newPromoteDataPartitionRaftLearnerRequest(partition.PartitionID, promotePeer))
+	partition.resetTaskID(task)
+	return
+}
 
+func (partition *DataPartition) createTaskToCreateDataPartition(addr string, dataPartitionSize uint64, peers []proto.Peer, hosts []string, learners []uint64, createType int) (task *proto.AdminTask) {
 	task = proto.NewAdminTask(proto.OpCreateDataPartition, addr, newCreateDataPartitionRequest(
-		partition.VolName, partition.PartitionID, peers, int(dataPartitionSize), hosts, createType))
+		partition.VolName, partition.PartitionID, peers, int(dataPartitionSize), hosts, learners, createType))
 	partition.resetTaskID(task)
 	return
 }
@@ -492,21 +499,25 @@ func (partition *DataPartition) getReplicaIndex(addr string) (index int, err err
 	return -1, errors.Trace(dataReplicaNotFound(addr), "%v not found ", addr)
 }
 
-func (partition *DataPartition) update(action, volName string, newPeers []proto.Peer, newHosts []string, c *Cluster) (err error) {
+func (partition *DataPartition) update(action, volName string, newPeers []proto.Peer, newHosts []string, newLearners []uint64, c *Cluster) (err error) {
 	orgHosts := make([]string, len(partition.Hosts))
 	copy(orgHosts, partition.Hosts)
 	oldPeers := make([]proto.Peer, len(partition.Peers))
 	copy(oldPeers, partition.Peers)
+	oldLearners := make([]uint64, len(partition.Learners))
+	copy(oldLearners, partition.Learners)
 	partition.Hosts = newHosts
 	partition.Peers = newPeers
+	partition.Learners = newLearners
 	if err = c.syncUpdateDataPartition(partition); err != nil {
 		partition.Hosts = orgHosts
 		partition.Peers = oldPeers
+		partition.Learners = oldLearners
 		return errors.Trace(err, "action[%v] update partition[%v] vol[%v] failed", action, partition.PartitionID, volName)
 	}
-	msg := fmt.Sprintf("action[%v] success,vol[%v] partitionID:%v "+
-		"oldHosts:%v, newHosts:%v, oldPeers[%v], newPeers[%v]",
-		action, volName, partition.PartitionID, orgHosts, partition.Hosts, oldPeers, partition.Peers)
+	msg := fmt.Sprintf("action[%v] success, vol[%v] partitionID: %v "+
+		"oldHosts[%v], newHosts[%v], oldPeers[%v], newPeers[%v], oldLearners[%v], newLearners[%v]",
+		action, volName, partition.PartitionID, orgHosts, partition.Hosts, oldPeers, partition.Peers, oldLearners, partition.Learners)
 	log.LogInfo(msg)
 	return
 }
@@ -680,6 +691,7 @@ func (partition *DataPartition) ToProto(c *Cluster) *proto.DataPartitionInfo {
 		Replicas:                replicas,
 		Hosts:                   partition.Hosts,
 		Peers:                   partition.Peers,
+		Learners:                partition.Learners,
 		Zones:                   zones,
 		MissingNodes:            partition.MissingNodes,
 		VolName:                 partition.VolName,

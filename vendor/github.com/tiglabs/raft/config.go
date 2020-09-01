@@ -133,6 +133,7 @@ type RaftConfig struct {
 	Peers        []proto.Peer
 	Storage      storage.Storage
 	StateMachine StateMachine
+	Learners	 []uint64
 }
 
 // DefaultConfig returns a Config with usable defaults.

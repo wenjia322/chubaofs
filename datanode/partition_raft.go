@@ -43,6 +43,7 @@ type dataPartitionCfg struct {
 	PartitionSize int                 `json:"partition_size"`
 	Peers         []proto.Peer        `json:"peers"`
 	Hosts         []string            `json:"hosts"`
+	Learners      []uint64            `json:"learners"` // nodeID of raft learners
 	NodeID        uint64              `json:"-"`
 	RaftStore     raftstore.RaftStore `json:"-"`
 }
@@ -102,11 +103,12 @@ func (dp *DataPartition) StartRaft() (err error) {
 	log.LogDebugf("start partition(%v) raft peers: %s path: %s",
 		dp.partitionID, peers, dp.path)
 	pc := &raftstore.PartitionConfig{
-		ID:      uint64(dp.partitionID),
-		Applied: dp.appliedID,
-		Peers:   peers,
-		SM:      dp,
-		WalPath: dp.path,
+		ID:       uint64(dp.partitionID),
+		Applied:  dp.appliedID,
+		Peers:    peers,
+		SM:       dp,
+		WalPath:  dp.path,
+		Learners: dp.config.Learners,
 	}
 
 	dp.raftPartition, err = dp.config.RaftStore.CreatePartition(pc)
@@ -360,6 +362,16 @@ func (dp *DataPartition) removeRaftNode(req *proto.RemoveDataPartitionRaftMember
 	if hostIndex != -1 {
 		dp.config.Hosts = append(dp.config.Hosts[:hostIndex], dp.config.Hosts[hostIndex+1:]...)
 	}
+	learnerIndex := -1
+	for index, learner := range dp.config.Learners {
+		if learner == req.RemovePeer.ID {
+			learnerIndex = index
+			break
+		}
+	}
+	if learnerIndex != -1 {
+		dp.config.Learners = append(dp.config.Learners[:learnerIndex], dp.config.Learners[learnerIndex+1:]...)
+	}
 	dp.config.Peers = append(dp.config.Peers[:peerIndex], dp.config.Peers[peerIndex+1:]...)
 	if dp.config.NodeID == req.RemovePeer.ID && !dp.isLoadingDataPartition && canRemoveSelf {
 		dp.raftPartition.Delete()
@@ -436,6 +448,32 @@ func (dp *DataPartition) resetRaftNode(req *proto.ResetDataPartitionRaftMemberRe
 	dp.config.Peers = newPeers
 	log.LogInfof("Finish ResetRaftNode  PartitionID(%v) nodeID(%v) newHosts(%v)  do RaftLog (%v) ",
 		req.PartitionId, dp.config.NodeID, newHosts, string(data))
+	return
+}
+
+func (dp *DataPartition) promoteRaftLearner(req *proto.PromoteDataPartitionRaftMemberRequest, index uint64) (isUpdated bool, err error) {
+	data, _ := json.Marshal(req)
+	isUpdated = false
+	log.LogInfof("Start PromoteRaftLearner PartitionID(%v) nodeID(%v) do RaftLog(%v)",
+		req.PartitionId, dp.config.NodeID, string(data))
+
+	newLearners := make([]uint64, 0)
+	for _, learner := range dp.config.Learners {
+		if learner == req.PromotePeer.ID {
+			isUpdated = true
+			continue
+		}
+		newLearners = append(newLearners, learner)
+	}
+	if !isUpdated {
+		log.LogInfof("NoUpdate PromoteRaftLearner PartitionID(%v) nodeID(%v)  do RaftLog(%v) ",
+			req.PartitionId, dp.config.NodeID, string(data))
+		return
+	}
+	dp.config.Learners = newLearners
+
+	log.LogInfof("Fininsh PromoteRaftLearner PartitionID(%v) nodeID(%v)  do RaftLog(%v) ",
+		req.PartitionId, dp.config.NodeID, string(data))
 	return
 }
 
@@ -838,4 +876,13 @@ func (dp *DataPartition) updateMaxMinAppliedID() {
 	dp.maxAppliedID = maxAppliedID
 
 	return
+}
+
+func (dp *DataPartition) addLearner(id uint64) {
+	for _, learner := range dp.config.Learners {
+		if learner == id {
+			return
+		}
+	}
+	dp.config.Learners = append(dp.config.Learners, id)
 }

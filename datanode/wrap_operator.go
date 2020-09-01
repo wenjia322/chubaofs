@@ -106,6 +106,8 @@ func (s *DataNode) OperatePacket(p *repl.Packet, c *net.TCPConn) (err error) {
 		s.handlePacketToRemoveDataPartitionRaftMember(p)
 	case proto.OpResetDataPartitionRaftMember:
 		s.handlePacketToResetDataPartitionRaftMember(p)
+	case proto.OpPromoteDataPartitionRaftLearner:
+		s.handlePacketToPromoteDataPartitionRaftLearner(p)
 	case proto.OpDataPartitionTryToLeader:
 		s.handlePacketToDataPartitionTryToLeaderrr(p)
 	case proto.OpGetPartitionSize:
@@ -953,7 +955,7 @@ func (s *DataNode) handlePacketToRemoveDataPartitionRaftMember(p *repl.Packet) {
 
 	dp := s.space.Partition(req.PartitionId)
 	if dp == nil {
-		err = fmt.Errorf("partition %v not exsit", req.PartitionId)
+		err = fmt.Errorf("partition %v not exist", req.PartitionId)
 		return
 	}
 	p.PartitionID = req.PartitionId
@@ -1050,6 +1052,63 @@ func (s *DataNode) handlePacketToResetDataPartitionRaftMember(p *repl.Packet) {
 	return
 }
 
+func (s *DataNode) handlePacketToPromoteDataPartitionRaftLearner(p *repl.Packet) {
+	var (
+		err          error
+		reqData      []byte
+		isRaftLeader bool
+		req          = &proto.PromoteDataPartitionRaftMemberRequest{}
+	)
+
+	defer func() {
+		if err != nil {
+			p.PackErrorBody(ActionPromoteDataPartitionRaftLearner, err.Error())
+		} else {
+			p.PacketOkReply()
+		}
+	}()
+
+	adminTask := &proto.AdminTask{}
+	decode := json.NewDecoder(bytes.NewBuffer(p.Data))
+	decode.UseNumber()
+	if err = decode.Decode(adminTask); err != nil {
+		return
+	}
+
+	reqData, err = json.Marshal(adminTask.Request)
+	p.AddMesgLog(string(reqData))
+	if err != nil {
+		return
+	}
+	if err = json.Unmarshal(reqData, req); err != nil {
+		return
+	}
+
+	dp := s.space.Partition(req.PartitionId)
+	if dp == nil {
+		err = proto.ErrDataPartitionNotExists
+		return
+	}
+	p.PartitionID = req.PartitionId
+
+	if !dp.IsExsitReplica(req.PromotePeer.Addr) || !containsID(dp.config.Learners, req.PromotePeer.ID) {
+		log.LogInfof("handlePacketToPromoteDataPartitionRaftLearner recive MasterCommand: %v "+
+			"PromoteRaftLearner(%v) has not exsit", string(reqData), req.PromotePeer.Addr)
+		return
+	}
+
+	isRaftLeader, err = s.forwardToRaftLeader(dp, p)
+	if !isRaftLeader {
+		return
+	}
+	if req.PromotePeer.ID != 0 {
+		_, err = dp.ChangeRaftMember(raftProto.ConfPromoteLearner, raftProto.Peer{ID: req.PromotePeer.ID}, reqData)
+		if err != nil {
+			return
+		}
+	}
+}
+
 func (s *DataNode) handlePacketToDataPartitionTryToLeaderrr(p *repl.Packet) {
 	var (
 		err error
@@ -1106,5 +1165,19 @@ func (s *DataNode) forwardToRaftLeader(dp *DataPartition, p *repl.Packet) (ok bo
 		return
 	}
 
+	return
+}
+
+func containsID(arr []uint64, element uint64) (ok bool) {
+	if arr == nil || len(arr) == 0 {
+		return
+	}
+
+	for _, e := range arr {
+		if e == element {
+			ok = true
+			break
+		}
+	}
 	return
 }

@@ -165,6 +165,7 @@ type DataPartitionInfo struct {
 	Replicas                []*DataReplica
 	Hosts                   []string // host addresses
 	Peers                   []Peer
+	Learners                []uint64 // nodeID of raft learners
 	Zones                   []string
 	MissingNodes            map[string]int64 // key: address of the missing node, value: when the node is missing
 	VolName                 string

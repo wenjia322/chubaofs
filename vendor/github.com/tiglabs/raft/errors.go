@@ -28,6 +28,7 @@ var (
 	ErrSnapping      = errors.New("raft is doing snapshot.")
 	ErrRetryLater    = errors.New("retry later")
 	ErrPeersEmpty    = errors.New("peers are nil or empty")
+	ErrLearnerNotReady = errors.New("raft learner is not ready.")
 )
 
 type FatalError struct {

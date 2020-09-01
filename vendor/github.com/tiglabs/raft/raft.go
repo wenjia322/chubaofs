@@ -69,7 +69,7 @@ type monitorStatus struct {
 func (s *peerState) change(c *proto.ConfChange) {
 	s.mu.Lock()
 	switch c.Type {
-	case proto.ConfAddNode:
+	case proto.ConfAddNode, proto.ConfAddLearner, proto.ConfPromoteLearner:
 		s.peers[c.Peer.ID] = c.Peer
 	case proto.ConfRemoveNode:
 		delete(s.peers, c.Peer.ID)
@@ -491,6 +491,13 @@ func (s *raft) proposeMemberChange(cc *proto.ConfChange, future *Future) {
 		return
 	}
 
+	if cc.Type == proto.ConfPromoteLearner {
+		if !s.isLearnerReady(cc.Peer) {
+			future.respond(nil, ErrLearnerNotReady)
+			return
+		}
+	}
+
 	pr := pool.getProposal()
 	pr.cmdType = proto.EntryConfChange
 	pr.future = future
@@ -501,6 +508,21 @@ func (s *raft) proposeMemberChange(cc *proto.ConfChange, future *Future) {
 		future.respond(nil, ErrStopped)
 	case s.propc <- pr:
 	}
+}
+
+func (s *raft) isLearnerReady(promotePeer proto.Peer) bool {
+	learnerPr, ok := s.raftFsm.replicas[promotePeer.ID]
+	if !ok || !learnerPr.isLearner || !learnerPr.active {
+		return false
+	}
+	leaderPr, ok := s.raftFsm.replicas[s.config.NodeID]
+	if !ok && float64(learnerPr.match) < float64(leaderPr.match)*proto.LearnerProgress {
+		return false
+	}
+	if !s.raftFsm.checkLeaderLease() {
+		return false
+	}
+	return true
 }
 
 func (s *raft) reciveMessage(m *proto.Message) {
@@ -799,6 +821,7 @@ func (s *raft) getStatus() *Status {
 				Active:      p.active,
 				LastActive:  p.lastActive,
 				Inflight:    p.count,
+				IsLearner:   p.isLearner,
 			}
 		}
 	}
