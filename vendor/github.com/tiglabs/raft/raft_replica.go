@@ -32,7 +32,8 @@ type replica struct {
 	paused, active, pending             bool
 	match, next, committed, pendingSnap uint64
 
-	lastActive time.Time
+	lastActive 	time.Time
+	isLearner	bool
 }
 
 func newReplica(peer proto.Peer, maxInflight int) *replica {

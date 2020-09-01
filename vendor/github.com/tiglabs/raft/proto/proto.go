@@ -45,15 +45,19 @@ const (
 )
 
 const (
-	ConfAddNode    ConfChangeType = 0
-	ConfRemoveNode ConfChangeType = 1
-	ConfUpdateNode ConfChangeType = 2
+	ConfAddNode    		ConfChangeType = 0
+	ConfRemoveNode 		ConfChangeType = 1
+	ConfUpdateNode 		ConfChangeType = 2
+	ConfAddLearner 		ConfChangeType = 3
+	ConfPromoteLearner	ConfChangeType = 4
 
 	EntryNormal     EntryType = 0
 	EntryConfChange EntryType = 1
 
 	PeerNormal  PeerType = 0
 	PeerArbiter PeerType = 1
+
+	LearnerProgress = 0.9
 )
 
 // The Snapshot interface is supplied by the application to access the snapshot data of application.
@@ -69,9 +73,10 @@ type SnapIterator interface {
 }
 
 type SnapshotMeta struct {
-	Index uint64
-	Term  uint64
-	Peers []Peer
+	Index 		uint64
+	Term  		uint64
+	Peers 		[]Peer
+	LearnerIDs	[]uint64	// todo
 }
 
 type Peer struct {

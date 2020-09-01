@@ -57,6 +57,7 @@ type DataPartitionMetadata struct {
 	CreateTime              string
 	Peers                   []proto.Peer
 	Hosts                   []string
+	Learners                []uint64
 	DataPartitionCreateType int
 	LastTruncateID          uint64
 }
@@ -195,6 +196,7 @@ func LoadDataPartition(partitionDir string, disk *Disk) (dp *DataPartition, err 
 		PartitionID:   meta.PartitionID,
 		Peers:         meta.Peers,
 		Hosts:         meta.Hosts,
+		Learners:      meta.Learners,
 		RaftStore:     disk.space.GetRaftStore(),
 		NodeID:        disk.space.GetNodeID(),
 		ClusterID:     disk.space.GetClusterID(),
@@ -420,6 +422,7 @@ func (dp *DataPartition) PersistMetadata() (err error) {
 		PartitionSize:           dp.config.PartitionSize,
 		Peers:                   dp.config.Peers,
 		Hosts:                   dp.config.Hosts,
+		Learners:                dp.config.Learners,
 		DataPartitionCreateType: dp.DataPartitionCreateType,
 		CreateTime:              time.Now().Format(TimeLayout),
 		LastTruncateID:          dp.lastTruncateID,
@@ -515,7 +518,7 @@ func (dp *DataPartition) computeUsage() {
 	if time.Now().Unix()-dp.intervalToUpdatePartitionSize < IntervalToUpdatePartitionSize {
 		return
 	}
-	dp.used=int(dp.ExtentStore().GetStoreUsedSize())
+	dp.used = int(dp.ExtentStore().GetStoreUsedSize())
 	dp.intervalToUpdatePartitionSize = time.Now().Unix()
 }
 

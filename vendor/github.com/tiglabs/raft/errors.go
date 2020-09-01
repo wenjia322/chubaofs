@@ -27,6 +27,7 @@ var (
 	ErrStopped       = errors.New("raft is already shutdown.")
 	ErrSnapping      = errors.New("raft is doing snapshot.")
 	ErrRetryLater    = errors.New("retry later")
+	ErrLearnerNotReady = errors.New("raft learner is not ready.")
 )
 
 type FatalError struct {

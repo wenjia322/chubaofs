@@ -28,13 +28,14 @@ import (
 	"time"
 )
 
-func newCreateDataPartitionRequest(volName string, ID uint64, members []proto.Peer, dataPartitionSize int, hosts []string, createType int) (req *proto.CreateDataPartitionRequest) {
+func newCreateDataPartitionRequest(volName string, ID uint64, members []proto.Peer, dataPartitionSize int, hosts []string, learners []uint64, createType int) (req *proto.CreateDataPartitionRequest) {
 	req = &proto.CreateDataPartitionRequest{
 		PartitionId:   ID,
 		PartitionSize: dataPartitionSize,
 		VolumeId:      volName,
 		Members:       members,
 		Hosts:         hosts,
+		Learners:      learners,
 		CreateType:    createType,
 	}
 	return
@@ -59,6 +60,14 @@ func newRemoveDataPartitionRaftMemberRequest(ID uint64, removePeer proto.Peer) (
 	req = &proto.RemoveDataPartitionRaftMemberRequest{
 		PartitionId: ID,
 		RemovePeer:  removePeer,
+	}
+	return
+}
+
+func newPromoteDataPartitionRaftLearnerRequest(ID uint64, promotePeer proto.Peer) (req *proto.PromoteDataPartitionRaftMemberRequest) {
+	req = &proto.PromoteDataPartitionRaftMemberRequest{
+		PartitionId: ID,
+		PromotePeer: promotePeer,
 	}
 	return
 }

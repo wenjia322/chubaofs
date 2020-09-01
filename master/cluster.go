@@ -693,7 +693,7 @@ func (c *Cluster) createDataPartition(volName string, zoneNum int) (dp *DataPart
 				wg.Done()
 			}()
 			var diskPath string
-			if diskPath, err = c.syncCreateDataPartitionToDataNode(host, vol.dataPartitionSize, dp, dp.Peers, dp.Hosts, proto.NormalCreateDataPartition); err != nil {
+			if diskPath, err = c.syncCreateDataPartitionToDataNode(host, vol.dataPartitionSize, dp, dp.Peers, dp.Hosts, dp.Learners, proto.NormalCreateDataPartition); err != nil {
 				errChannel <- err
 				return
 			}
@@ -742,8 +742,8 @@ errHandler:
 	return
 }
 
-func (c *Cluster) syncCreateDataPartitionToDataNode(host string, size uint64, dp *DataPartition, peers []proto.Peer, hosts []string, createType int) (diskPath string, err error) {
-	task := dp.createTaskToCreateDataPartition(host, size, peers, hosts, createType)
+func (c *Cluster) syncCreateDataPartitionToDataNode(host string, size uint64, dp *DataPartition, peers []proto.Peer, hosts []string, learners []uint64, createType int) (diskPath string, err error) {
+	task := dp.createTaskToCreateDataPartition(host, size, peers, hosts, learners, createType)
 	dataNode, err := c.dataNode(host)
 	if err != nil {
 		return
@@ -1240,7 +1240,63 @@ func (c *Cluster) addDataPartitionRaftMember(dp *DataPartition, addPeer proto.Pe
 	newPeers := make([]proto.Peer, 0, len(dp.Peers)+1)
 	newHosts = append(dp.Hosts, addPeer.Addr)
 	newPeers = append(dp.Peers, addPeer)
-	if err = dp.update("addDataPartitionRaftMember", dp.VolName, newPeers, newHosts, c); err != nil {
+	newLearners := make([]uint64, 0, len(dp.Learners)+1)
+	newLearners = append(dp.Learners, addPeer.ID)
+	if err = dp.update("addDataPartitionRaftMember", dp.VolName, newPeers, newHosts, newLearners, c); err != nil {
+		return
+	}
+	return
+}
+
+func (c *Cluster) promoteDataReplicaLearner(dp *DataPartition, addr string) (err error) {
+	defer func() {
+		if err != nil {
+			log.LogErrorf("action[promoteDataReplicaLearner], vol[%v], data partition[%v], learner[%v], err[%v]", dp.VolName, dp.PartitionID, addr, err)
+		}
+	}()
+	dataNode, err := c.dataNode(addr)
+	if err != nil {
+		return
+	}
+	promotePeer := proto.Peer{ID: dataNode.ID, Addr: addr}
+	if err = c.promoteDataPartitionRaftLearner(dp, promotePeer); err != nil {
+		return
+	}
+	return
+}
+
+func (c *Cluster) promoteDataPartitionRaftLearner(dp *DataPartition, promotePeer proto.Peer) (err error) {
+	dp.Lock()
+	defer dp.Unlock()
+	if !containsID(dp.Learners, promotePeer.ID) {
+		err = fmt.Errorf("learner[%v] is not included in vol[%v], datapartition[%v]", promotePeer, dp.VolName, dp.PartitionID)
+		return
+	}
+	leaderAddr := dp.getLeaderAddr()
+	if leaderAddr == "" {
+		err = proto.ErrNoLeader
+		return
+	}
+	task, err := dp.createTaskToPromoteRaftLearner(promotePeer, leaderAddr)
+	if err != nil {
+		return
+	}
+	leaderDataNode, err := c.dataNode(leaderAddr)
+	if err != nil {
+		return
+	}
+	if _, err = leaderDataNode.TaskManager.syncSendAdminTask(task); err != nil {
+		log.LogErrorf("action[promoteDataPartitionRaftLearner] vol[%v], data partition[%v], learner[%v], err[%v]", dp.VolName, dp.PartitionID, promotePeer, err)
+		return
+	}
+	newLearners := make([]uint64, 0)
+	for _, learner := range dp.Learners {
+		if learner == promotePeer.ID {
+			continue
+		}
+		newLearners = append(newLearners, learner)
+	}
+	if err = dp.update("promoteDataPartitionRaftLearner", dp.VolName, dp.Peers, dp.Hosts, newLearners, c); err != nil {
 		return
 	}
 	return
@@ -1256,8 +1312,10 @@ func (c *Cluster) createDataReplica(dp *DataPartition, addPeer proto.Peer) (err 
 	copy(hosts, dp.Hosts)
 	peers := make([]proto.Peer, len(dp.Peers))
 	copy(peers, dp.Peers)
+	learners := make([]uint64, len(dp.Learners))
+	copy(learners, dp.Learners)
 	dp.RUnlock()
-	diskPath, err := c.syncCreateDataPartitionToDataNode(addPeer.Addr, vol.dataPartitionSize, dp, peers, hosts, proto.DecommissionedCreateDataPartition)
+	diskPath, err := c.syncCreateDataPartitionToDataNode(addPeer.Addr, vol.dataPartitionSize, dp, peers, hosts, learners, proto.DecommissionedCreateDataPartition)
 	if err != nil {
 		return
 	}
@@ -1266,7 +1324,7 @@ func (c *Cluster) createDataReplica(dp *DataPartition, addPeer proto.Peer) (err 
 	if err = dp.afterCreation(addPeer.Addr, diskPath, c); err != nil {
 		return
 	}
-	if err = dp.update("createDataReplica", dp.VolName, dp.Peers, dp.Hosts, c); err != nil {
+	if err = dp.update("createDataReplica", dp.VolName, dp.Peers, dp.Hosts, dp.Learners, c); err != nil {
 		return
 	}
 	return
@@ -1362,7 +1420,14 @@ func (c *Cluster) removeDataPartitionRaftMember(dp *DataPartition, removePeer pr
 		}
 		newPeers = append(newPeers, peer)
 	}
-	if err = dp.update("removeDataPartitionRaftMember", dp.VolName, newPeers, newHosts, c); err != nil {
+	newLearners := make([]uint64, 0)
+	for _, learner := range dp.Learners {
+		if learner == removePeer.ID {
+			continue
+		}
+		newLearners = append(newLearners, learner)
+	}
+	if err = dp.update("removeDataPartitionRaftMember", dp.VolName, newPeers, newHosts, newLearners, c); err != nil {
 		return
 	}
 	return
@@ -1373,7 +1438,7 @@ func (c *Cluster) deleteDataReplica(dp *DataPartition, dataNode *DataNode) (err 
 	// in case dataNode is unreachable,update meta first.
 	dp.removeReplicaByAddr(dataNode.Addr)
 	dp.checkAndRemoveMissReplica(dataNode.Addr)
-	if err = dp.update("deleteDataReplica", dp.VolName, dp.Peers, dp.Hosts, c); err != nil {
+	if err = dp.update("deleteDataReplica", dp.VolName, dp.Peers, dp.Hosts, dp.Learners, c); err != nil {
 		dp.Unlock()
 		return
 	}
@@ -1396,7 +1461,7 @@ func (c *Cluster) putBadMetaPartitions(addr string, partitionID uint64) {
 	c.BadMetaPartitionIds.Store(addr, newBadPartitionIDs)
 }
 
-func (c *Cluster) getBadMetaPartitionsView() (bmpvs []badPartitionView){
+func (c *Cluster) getBadMetaPartitionsView() (bmpvs []badPartitionView) {
 	bmpvs = make([]badPartitionView, 0)
 	c.BadMetaPartitionIds.Range(func(key, value interface{}) bool {
 		badPartitionIds := value.([]uint64)
@@ -1424,7 +1489,7 @@ func (c *Cluster) putBadDataPartitionIDs(replica *DataReplica, addr string, part
 	c.BadDataPartitionIds.Store(key, newBadPartitionIDs)
 }
 
-func (c *Cluster) getBadDataPartitionsView() (bpvs []badPartitionView){
+func (c *Cluster) getBadDataPartitionsView() (bpvs []badPartitionView) {
 	bpvs = make([]badPartitionView, 0)
 	c.BadDataPartitionIds.Range(func(key, value interface{}) bool {
 		badDataPartitionIds := value.([]uint64)

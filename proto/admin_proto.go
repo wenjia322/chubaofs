@@ -162,6 +162,7 @@ type CreateDataPartitionRequest struct {
 	IsRandomWrite bool
 	Members       []Peer
 	Hosts         []string
+	Learners      []uint64
 	CreateType    int
 }
 
@@ -197,6 +198,12 @@ type DataPartitionDecommissionRequest struct {
 type AddDataPartitionRaftMemberRequest struct {
 	PartitionId uint64
 	AddPeer     Peer
+}
+
+// PromoteDataPartitionRaftMemberRequest defines the request of promote learner raftMember a data partition.
+type PromoteDataPartitionRaftMemberRequest struct {
+	PartitionId uint64
+	PromotePeer Peer
 }
 
 // RemoveDataPartitionRaftMemberRequest defines the request of add raftMember a data partition.
