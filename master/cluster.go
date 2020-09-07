@@ -1129,7 +1129,7 @@ func (c *Cluster) decommissionDataPartition(offlineAddr string, dp *DataPartitio
 		goto errHandler
 	}
 	newAddr = targetHosts[0]
-	if err = c.addDataReplica(dp, newAddr); err != nil {
+	if err = c.addDataReplica(dp, newAddr, false); err != nil {
 		goto errHandler
 	}
 	dp.Status = proto.ReadOnly
@@ -1275,7 +1275,7 @@ func (c *Cluster) validateDecommissionDataPartition(dp *DataPartition, offlineAd
 	return
 }
 
-func (c *Cluster) addDataReplica(dp *DataPartition, addr string) (err error) {
+func (c *Cluster) addDataReplica(dp *DataPartition, addr string, isLearner bool) (err error) {
 	defer func() {
 		if err != nil {
 			log.LogErrorf("action[addDataReplica],vol[%v],data partition[%v],err[%v]", dp.VolName, dp.PartitionID, err)
@@ -1286,8 +1286,7 @@ func (c *Cluster) addDataReplica(dp *DataPartition, addr string) (err error) {
 		return
 	}
 	addPeer := proto.Peer{ID: dataNode.ID, Addr: addr}
-	// Todo: What if adding raft member success but creating replica failed?
-	if err = c.addDataPartitionRaftMember(dp, addPeer); err != nil {
+	if err = c.addDataPartitionRaftMember(dp, addPeer, isLearner); err != nil {
 		return
 	}
 
@@ -1297,7 +1296,7 @@ func (c *Cluster) addDataReplica(dp *DataPartition, addr string) (err error) {
 	return
 }
 
-func (c *Cluster) buildAddDataPartitionRaftMemberTaskAndSyncSendTask(dp *DataPartition, addPeer proto.Peer, leaderAddr string) (resp *proto.Packet, err error) {
+func (c *Cluster) buildAddDataPartitionRaftMemberTaskAndSyncSendTask(dp *DataPartition, addPeer proto.Peer, leaderAddr string, isLearner bool) (resp *proto.Packet, err error) {
 	defer func() {
 		var resultCode uint8
 		if resp != nil {
@@ -1309,7 +1308,7 @@ func (c *Cluster) buildAddDataPartitionRaftMemberTaskAndSyncSendTask(dp *DataPar
 			log.LogWarnf("vol[%v],data partition[%v],resultCode[%v],err[%v]", dp.VolName, dp.PartitionID, resultCode, err)
 		}
 	}()
-	task, err := dp.createTaskToAddRaftMember(addPeer, leaderAddr)
+	task, err := dp.createTaskToAddRaftMember(addPeer, leaderAddr, isLearner)
 	if err != nil {
 		return
 	}
@@ -1323,7 +1322,7 @@ func (c *Cluster) buildAddDataPartitionRaftMemberTaskAndSyncSendTask(dp *DataPar
 	return
 }
 
-func (c *Cluster) addDataPartitionRaftMember(dp *DataPartition, addPeer proto.Peer) (err error) {
+func (c *Cluster) addDataPartitionRaftMember(dp *DataPartition, addPeer proto.Peer, isLearner bool) (err error) {
 	dp.Lock()
 	defer dp.Unlock()
 	if contains(dp.Hosts, addPeer.Addr) {
@@ -1353,7 +1352,7 @@ func (c *Cluster) addDataPartitionRaftMember(dp *DataPartition, addPeer proto.Pe
 		if leaderAddr == "" && len(candidateAddrs) < int(dp.ReplicaNum) {
 			time.Sleep(retrySendSyncTaskInternal)
 		}
-		_, err = c.buildAddDataPartitionRaftMemberTaskAndSyncSendTask(dp, addPeer, host)
+		_, err = c.buildAddDataPartitionRaftMemberTaskAndSyncSendTask(dp, addPeer, host, isLearner)
 		if err == nil {
 			break
 		}

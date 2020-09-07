@@ -202,6 +202,7 @@ type DataPartitionDecommissionRequest struct {
 type AddDataPartitionRaftMemberRequest struct {
 	PartitionId uint64
 	AddPeer     Peer
+	IsLearner   bool
 }
 
 // PromoteDataPartitionRaftMemberRequest defines the request of promote learner raftMember a data partition.

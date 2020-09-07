@@ -106,8 +106,8 @@ func (partition *DataPartition) createTaskToTryToChangeLeader(addr string) (task
 	return
 }
 
-func (partition *DataPartition) createTaskToAddRaftMember(addPeer proto.Peer, leaderAddr string) (task *proto.AdminTask, err error) {
-	task = proto.NewAdminTask(proto.OpAddDataPartitionRaftMember, leaderAddr, newAddDataPartitionRaftMemberRequest(partition.PartitionID, addPeer))
+func (partition *DataPartition) createTaskToAddRaftMember(addPeer proto.Peer, leaderAddr string, isLearner bool) (task *proto.AdminTask, err error) {
+	task = proto.NewAdminTask(proto.OpAddDataPartitionRaftMember, leaderAddr, newAddDataPartitionRaftMemberRequest(partition.PartitionID, addPeer, isLearner))
 	partition.resetTaskID(task)
 	return
 }

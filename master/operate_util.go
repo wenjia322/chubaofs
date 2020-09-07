@@ -48,10 +48,11 @@ func newDeleteDataPartitionRequest(ID uint64) (req *proto.DeleteDataPartitionReq
 	return
 }
 
-func newAddDataPartitionRaftMemberRequest(ID uint64, addPeer proto.Peer) (req *proto.AddDataPartitionRaftMemberRequest) {
+func newAddDataPartitionRaftMemberRequest(ID uint64, addPeer proto.Peer, isLearner bool) (req *proto.AddDataPartitionRaftMemberRequest) {
 	req = &proto.AddDataPartitionRaftMemberRequest{
 		PartitionId: ID,
 		AddPeer:     addPeer,
+		IsLearner:   isLearner,
 	}
 	return
 }
