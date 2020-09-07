@@ -380,8 +380,8 @@ func (m *Server) addDataReplica(w http.ResponseWriter, r *http.Request) {
 		sendErrReply(w, r, newErrHTTPReply(proto.ErrDataPartitionNotExists))
 		return
 	}
-
-	if err = m.cluster.addDataReplica(dp, addr); err != nil {
+	isLearner := true //todo
+	if err = m.cluster.addDataReplica(dp, addr, isLearner); err != nil {
 		sendErrReply(w, r, newErrHTTPReply(err))
 		return
 	}
@@ -1019,7 +1019,7 @@ func (m *Server) addMetaNode(w http.ResponseWriter, r *http.Request) {
 	sendOkReply(w, r, newSuccessHTTPReply(id))
 }
 
-func (m *Server) checkInvalidIDNodes(w http.ResponseWriter,r *http.Request) {
+func (m *Server) checkInvalidIDNodes(w http.ResponseWriter, r *http.Request) {
 	nodes := m.cluster.getInvalidIDNodes()
 	sendOkReply(w, r, newSuccessHTTPReply(nodes))
 }

@@ -911,7 +911,11 @@ func (s *DataNode) handlePacketToAddDataPartitionRaftMember(p *repl.Packet) {
 	}
 
 	if req.AddPeer.ID != 0 {
-		_, err = dp.ChangeRaftMember(raftProto.ConfAddNode, raftProto.Peer{ID: req.AddPeer.ID}, reqData)
+		confType := raftProto.ConfAddNode
+		if req.IsLearner {
+			confType = raftProto.ConfAddLearner
+		}
+		_, err = dp.ChangeRaftMember(confType, raftProto.Peer{ID: req.AddPeer.ID}, reqData)
 		if err != nil {
 			return
 		}
