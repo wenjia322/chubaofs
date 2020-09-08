@@ -225,6 +225,9 @@ func (m *Server) registerAPIRoutes(router *mux.Router) {
 		Path(proto.AdminDeleteDataReplica).
 		HandlerFunc(m.deleteDataReplica)
 	router.NewRoute().Methods(http.MethodGet, http.MethodPost).
+		Path(proto.AdminPromoteDataReplica).
+		HandlerFunc(m.promoteDataReplica)
+	router.NewRoute().Methods(http.MethodGet, http.MethodPost).
 		Path(proto.AdminUpdateMetaNode).
 		HandlerFunc(m.updateMetaNode)
 	router.NewRoute().Methods(http.MethodGet, http.MethodPost).

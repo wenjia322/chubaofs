@@ -195,6 +195,10 @@ func (t ConfChangeType) String() string {
 		return "ConfRemoveNode"
 	case 2:
 		return "ConfUpdateNode"
+	case 3:
+		return "ConfAddLearner"
+	case 4:
+		return "ConfPromoteLearner"
 	}
 	return "unkown"
 }

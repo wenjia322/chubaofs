@@ -368,10 +368,11 @@ func (m *Server) addDataReplica(w http.ResponseWriter, r *http.Request) {
 		addr        string
 		dp          *DataPartition
 		partitionID uint64
+		isLearner   bool
 		err         error
 	)
 
-	if partitionID, addr, err = parseRequestToAddDataReplica(r); err != nil {
+	if partitionID, addr, isLearner, err = parseRequestToAddDataReplica(r); err != nil {
 		sendErrReply(w, r, &proto.HTTPReply{Code: proto.ErrCodeParamError, Msg: err.Error()})
 		return
 	}
@@ -386,7 +387,6 @@ func (m *Server) addDataReplica(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	isLearner := true //todo
 	if err = m.cluster.addDataReplica(dp, addr, isLearner); err != nil {
 		sendErrReply(w, r, newErrHTTPReply(err))
 		return
@@ -425,6 +425,32 @@ func (m *Server) deleteDataReplica(w http.ResponseWriter, r *http.Request) {
 	sendOkReply(w, r, newSuccessHTTPReply(msg))
 }
 
+func (m *Server) promoteDataReplica(w http.ResponseWriter, r *http.Request) {
+	var (
+		msg         string
+		addr        string
+		dp          *DataPartition
+		partitionID uint64
+		err         error
+	)
+
+	if partitionID, addr, err = parseRequestToPromoteDataReplica(r); err != nil {
+		sendErrReply(w, r, &proto.HTTPReply{Code: proto.ErrCodeParamError, Msg: err.Error()})
+		return
+	}
+
+	if dp, err = m.cluster.getDataPartitionByID(partitionID); err != nil {
+		sendErrReply(w, r, newErrHTTPReply(proto.ErrDataPartitionNotExists))
+		return
+	}
+
+	if err = m.cluster.promoteDataReplicaLearner(dp, addr); err != nil {
+		sendErrReply(w, r, newErrHTTPReply(err))
+		return
+	}
+	msg = fmt.Sprintf("data partitionID: %v  promote replica [%v] successfully", partitionID, addr)
+	sendOkReply(w, r, newSuccessHTTPReply(msg))
+}
 func (m *Server) addMetaReplica(w http.ResponseWriter, r *http.Request) {
 	var (
 		msg         string
@@ -893,11 +919,11 @@ func (m *Server) decommissionDataNode(w http.ResponseWriter, r *http.Request) {
 
 func (m *Server) resetCorruptDataNode(w http.ResponseWriter, r *http.Request) {
 	var (
-		rstMsg          string
-		err             error
-		resetAddr       string
-		node            *DataNode
-		corruptDps      []*DataPartition
+		rstMsg     string
+		err        error
+		resetAddr  string
+		node       *DataNode
+		corruptDps []*DataPartition
 	)
 
 	if resetAddr, err = parseAndExtractNodeAddr(r); err != nil {
@@ -922,7 +948,7 @@ func (m *Server) resetCorruptDataNode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	rstMsg = fmt.Sprintf(proto.AdminResetCorruptDataNode + "successfully, node:[%v] count:[%v]", node.Addr, len(corruptDps))
+	rstMsg = fmt.Sprintf(proto.AdminResetCorruptDataNode+"successfully, node:[%v] count:[%v]", node.Addr, len(corruptDps))
 	sendOkReply(w, r, newSuccessHTTPReply(rstMsg))
 }
 
@@ -1266,11 +1292,11 @@ func (m *Server) decommissionMetaNode(w http.ResponseWriter, r *http.Request) {
 
 func (m *Server) resetCorruptMetaNode(w http.ResponseWriter, r *http.Request) {
 	var (
-		node        *MetaNode
-		addr        string
-		rstMsg      string
-		corruptMps  []*MetaPartition
-		err         error
+		node       *MetaNode
+		addr       string
+		rstMsg     string
+		corruptMps []*MetaPartition
+		err        error
 	)
 	if addr, err = parseAndExtractNodeAddr(r); err != nil {
 		sendErrReply(w, r, &proto.HTTPReply{Code: proto.ErrCodeParamError, Msg: err.Error()})
@@ -1697,11 +1723,17 @@ func extractMetaPartitionIDAndAddr(r *http.Request) (ID uint64, addr string, err
 	return
 }
 
-func parseRequestToAddDataReplica(r *http.Request) (ID uint64, addr string, err error) {
-	return extractDataPartitionIDAndAddr(r)
+func parseRequestToAddDataReplica(r *http.Request) (ID uint64, addr string, isLearner bool, err error) {
+	ID, addr, err = extractDataPartitionIDAndAddr(r)
+	isLearner = extractLearner(r)
+	return
 }
 
 func parseRequestToRemoveDataReplica(r *http.Request) (ID uint64, addr string, err error) {
+	return extractDataPartitionIDAndAddr(r)
+}
+
+func parseRequestToPromoteDataReplica(r *http.Request) (ID uint64, addr string, err error) {
 	return extractDataPartitionIDAndAddr(r)
 }
 
@@ -1737,6 +1769,13 @@ func extractNodeAddr(r *http.Request) (nodeAddr string, err error) {
 		return
 	}
 	return
+}
+
+func extractLearner(r *http.Request) (isLearner bool) {
+	if value := r.FormValue(learnerKey); value != "" {
+		isLearner, _ = strconv.ParseBool(value)
+	}
+	return isLearner
 }
 
 func extractNodeID(r *http.Request) (ID uint64, err error) {

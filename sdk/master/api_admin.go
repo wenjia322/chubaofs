@@ -63,10 +63,10 @@ func (api *AdminAPI) ListZones() (zoneViews []*proto.ZoneView, err error) {
 	}
 	return
 }
-func (api *AdminAPI) Topo() (topo *proto.TopologyView, err error ){
+func (api *AdminAPI) Topo() (topo *proto.TopologyView, err error) {
 	var buf []byte
 	var request = newAPIRequest(http.MethodGet, proto.GetTopologyView)
-	if buf, err = api.mc.serveRequest(request); err != nil{
+	if buf, err = api.mc.serveRequest(request); err != nil {
 		return
 	}
 	topo = &proto.TopologyView{}
@@ -135,7 +135,7 @@ func (api *AdminAPI) DiagnoseMetaPartition() (diagnosis *proto.MetaPartitionDiag
 	}
 	return
 }
-func (api *AdminAPI) ResetMetaPartition( partitionID uint64) (err error) {
+func (api *AdminAPI) ResetMetaPartition(partitionID uint64) (err error) {
 	var request = newAPIRequest(http.MethodGet, proto.AdminResetMetaPartition)
 	request.addParam("id", strconv.Itoa(int(partitionID)))
 	if _, err = api.mc.serveRequest(request); err != nil {
@@ -208,6 +208,7 @@ func (api *AdminAPI) AddDataReplica(dataPartitionID uint64, nodeAddr string) (er
 	var request = newAPIRequest(http.MethodGet, proto.AdminAddDataReplica)
 	request.addParam("id", strconv.FormatUint(dataPartitionID, 10))
 	request.addParam("addr", nodeAddr)
+	// todo add learner flag parameter?
 	if _, err = api.mc.serveRequest(request); err != nil {
 		return
 	}

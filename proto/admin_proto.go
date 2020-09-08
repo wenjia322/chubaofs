@@ -27,6 +27,7 @@ const (
 	AdminResetCorruptDataNode      = "/dataNode/reset"
 	AdminDeleteDataReplica         = "/dataReplica/delete"
 	AdminAddDataReplica            = "/dataReplica/add"
+	AdminPromoteDataReplica        = "/dataReplica/promote" // todo
 	AdminDeleteVol                 = "/vol/delete"
 	AdminUpdateVol                 = "/vol/update"
 	AdminVolShrink                 = "/vol/shrink"
