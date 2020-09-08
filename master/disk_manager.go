@@ -60,7 +60,7 @@ func (c *Cluster) checkDiskRecoveryProgress() {
 				continue
 			}
 			diff = partition.getMinus()
-			if diff < util.GB && len(partition.Replicas) >= int(vol.dpReplicaNum){
+			if diff < util.GB && len(partition.Replicas) >= int(vol.dpReplicaNum) {
 				partition.isRecover = false
 				partition.RLock()
 				c.syncUpdateDataPartition(partition)
@@ -81,6 +81,7 @@ func (c *Cluster) checkDiskRecoveryProgress() {
 		return true
 	})
 }
+
 // Add replica for the partition whose replica number is less than replicaNum
 func (c *Cluster) fullFillReplica() {
 	c.BadDataPartitionIds.Range(func(key, value interface{}) bool {
@@ -89,7 +90,7 @@ func (c *Cluster) fullFillReplica() {
 		newBadParitionIds := make([]uint64, 0)
 		for _, partitionID := range badDataPartitionIds {
 			var isSkip bool
-			var err    error
+			var err error
 			if isSkip, err = c.checkAddDataReplica(badDiskAddr, partitionID); err != nil {
 				log.LogWarnf(fmt.Sprintf("action[fullFillReplica], clusterID[%v], partitionID[%v], err[%v] ", c.Name, partitionID, err))
 			}
@@ -104,10 +105,10 @@ func (c *Cluster) fullFillReplica() {
 
 }
 
-func (c *Cluster) checkAddDataReplica(badDiskAddr string, partitionID uint64) (isSkip bool, err error){
-	var(
-		newAddr    string
-		partition  *DataPartition
+func (c *Cluster) checkAddDataReplica(badDiskAddr string, partitionID uint64) (isSkip bool, err error) {
+	var (
+		newAddr   string
+		partition *DataPartition
 	)
 	if partition, err = c.getDataPartitionByID(partitionID); err != nil {
 		return
@@ -122,7 +123,7 @@ func (c *Cluster) checkAddDataReplica(badDiskAddr string, partitionID uint64) (i
 	if newAddr, err = c.chooseTargetDataPartitionHost(badDiskAddr, partition); err != nil {
 		return
 	}
-	if err = c.addDataReplica(partition, newAddr); err != nil {
+	if err = c.addDataReplica(partition, newAddr, true); err != nil { // todo as a learner?
 		return
 	}
 	// Todo: What if Master changed leader before this step?
