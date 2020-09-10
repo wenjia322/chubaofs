@@ -519,6 +519,7 @@ func (s *raft) isLearnerReady(promotePeer proto.Peer) bool {
 	if !ok && float64(learnerPr.match) < float64(leaderPr.match)*proto.LearnerProgress {
 		return false
 	}
+	// todo learner as quorum
 	if !s.raftFsm.checkLeaderLease() {
 		return false
 	}

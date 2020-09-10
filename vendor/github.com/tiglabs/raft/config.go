@@ -134,6 +134,7 @@ type RaftConfig struct {
 	Storage      storage.Storage
 	StateMachine StateMachine
 	Learners	 []uint64
+	AutoPromote  bool
 }
 
 // DefaultConfig returns a Config with usable defaults.

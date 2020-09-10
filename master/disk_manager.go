@@ -123,7 +123,7 @@ func (c *Cluster) checkAddDataReplica(badDiskAddr string, partitionID uint64) (i
 	if newAddr, err = c.chooseTargetDataPartitionHost(badDiskAddr, partition); err != nil {
 		return
 	}
-	if err = c.addDataReplica(partition, newAddr, true); err != nil { // todo as a learner?
+	if err = c.addDataReplica(partition, newAddr, false); err != nil { // todo as a learner?
 		return
 	}
 	// Todo: What if Master changed leader before this step?

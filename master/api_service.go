@@ -368,11 +368,10 @@ func (m *Server) addDataReplica(w http.ResponseWriter, r *http.Request) {
 		addr        string
 		dp          *DataPartition
 		partitionID uint64
-		isLearner   bool
 		err         error
 	)
 
-	if partitionID, addr, isLearner, err = parseRequestToAddDataReplica(r); err != nil {
+	if partitionID, addr, err = parseRequestToAddDataReplica(r); err != nil {
 		sendErrReply(w, r, &proto.HTTPReply{Code: proto.ErrCodeParamError, Msg: err.Error()})
 		return
 	}
@@ -387,7 +386,7 @@ func (m *Server) addDataReplica(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err = m.cluster.addDataReplica(dp, addr, isLearner); err != nil {
+	if err = m.cluster.addDataReplica(dp, addr, false); err != nil {
 		sendErrReply(w, r, newErrHTTPReply(err))
 		return
 	}
@@ -1723,9 +1722,8 @@ func extractMetaPartitionIDAndAddr(r *http.Request) (ID uint64, addr string, err
 	return
 }
 
-func parseRequestToAddDataReplica(r *http.Request) (ID uint64, addr string, isLearner bool, err error) {
+func parseRequestToAddDataReplica(r *http.Request) (ID uint64, addr string, err error) {
 	ID, addr, err = extractDataPartitionIDAndAddr(r)
-	isLearner = extractLearner(r)
 	return
 }
 
