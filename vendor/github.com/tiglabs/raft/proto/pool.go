@@ -47,7 +47,7 @@ func GetMessage() *Message {
 	msg.SnapshotMeta.Index = 0
 	msg.SnapshotMeta.Term = 0
 	msg.SnapshotMeta.Peers = nil
-	msg.SnapshotMeta.LearnerIDs = nil
+	msg.SnapshotMeta.Learners = nil
 	msg.Snapshot = nil
 	msg.Context = nil
 	msg.Entries = msg.Entries[0:0]

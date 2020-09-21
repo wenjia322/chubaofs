@@ -43,7 +43,8 @@ type dataPartitionCfg struct {
 	PartitionSize int                 `json:"partition_size"`
 	Peers         []proto.Peer        `json:"peers"`
 	Hosts         []string            `json:"hosts"`
-	Learners      []uint64            `json:"learners"` // nodeID of raft learners
+	Learners      []uint64            `json:"learners"`     // nodeID set of raft learners
+	AutoPromote   bool                `json:"auto_promote"` //todo
 	NodeID        uint64              `json:"-"`
 	RaftStore     raftstore.RaftStore `json:"-"`
 }
@@ -103,12 +104,13 @@ func (dp *DataPartition) StartRaft() (err error) {
 	log.LogDebugf("start partition(%v) raft peers: %s path: %s",
 		dp.partitionID, peers, dp.path)
 	pc := &raftstore.PartitionConfig{
-		ID:       uint64(dp.partitionID),
-		Applied:  dp.appliedID,
-		Peers:    peers,
-		SM:       dp,
-		WalPath:  dp.path,
-		Learners: dp.config.Learners,
+		ID:      uint64(dp.partitionID),
+		Applied: dp.appliedID,
+		Peers:   peers,
+		SM:      dp,
+		WalPath: dp.path,
+		//todo 	Learners: 		dp.config.Learners,
+		AutoPromote: dp.config.AutoPromote,
 	}
 
 	dp.raftPartition, err = dp.config.RaftStore.CreatePartition(pc)
@@ -388,7 +390,7 @@ func (dp *DataPartition) removeRaftNode(req *proto.RemoveDataPartitionRaftMember
 func (dp *DataPartition) resetRaftNode(req *proto.ResetDataPartitionRaftMemberRequest) (isUpdated bool, err error) {
 	var (
 		newHostIndexes []int
-	    newPeerIndexes []int
+		newPeerIndexes []int
 		newHosts       []string
 		newPeers       []proto.Peer
 	)

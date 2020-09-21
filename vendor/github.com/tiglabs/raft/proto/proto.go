@@ -57,7 +57,7 @@ const (
 	PeerNormal  PeerType = 0
 	PeerArbiter PeerType = 1
 
-	LearnerProgress = 0.9
+	LearnerProgress = 90
 )
 
 // The Snapshot interface is supplied by the application to access the snapshot data of application.
@@ -76,7 +76,7 @@ type SnapshotMeta struct {
 	Index 		uint64
 	Term  		uint64
 	Peers 		[]Peer
-	LearnerIDs	[]uint64	// todo
+	Learners	[]Learner
 }
 
 type Peer struct {
@@ -84,6 +84,11 @@ type Peer struct {
 	Priority uint16
 	ID       uint64 // NodeID
 	PeerID   uint64 // Replica ID, unique over all raft groups and all replicas in the same group
+}
+
+type Learner struct {
+	ID			uint64	// NodeID
+	PromConfig	PromoteConfig
 }
 
 // HardState is the repl state,must persist to the storage.
@@ -136,6 +141,17 @@ type ResetPeers struct {
 	NewPeers []Peer
 	Context  []byte
 }
+
+type PromoteConfig struct {
+	PromThreshold uint8		// promote threshold
+	AutoPromote   bool
+}
+
+type ConfChangeReq struct {
+	Id			uint64
+	ChangePeer	Peer
+	PromConfig  PromoteConfig
+} 
 
 type HeartbeatContext []uint64
 

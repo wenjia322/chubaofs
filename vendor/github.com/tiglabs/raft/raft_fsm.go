@@ -16,6 +16,7 @@
 package raft
 
 import (
+	"encoding/json"
 	"fmt"
 	"math/rand"
 	"strings"
@@ -87,8 +88,9 @@ func newRaftFsm(config *Config, raftConfig *RaftConfig) (*raftFsm, error) {
 	for _, p := range raftConfig.Peers {
 		r.replicas[p.ID] = newReplica(p, 0)
 	}
-	for _, id := range raftConfig.Learners {
-		r.replicas[id].isLearner = true
+	for _, learner := range raftConfig.Learners {
+		r.replicas[learner.ID].isLearner = true
+		r.replicas[learner.ID].promConfig = learner.PromConfig
 	}
 	if !hs.IsEmpty() {
 		if raftConfig.Applied > r.raftLog.lastIndex() {
@@ -282,13 +284,17 @@ func (r *raftFsm) applyConfChange(cc *proto.ConfChange) {
 
 	switch cc.Type {
 	case proto.ConfAddNode, proto.ConfPromoteLearner:
-		r.addPeer(cc.Peer, false)
+		r.addPeer(cc.Peer, false, nil)
 	case proto.ConfRemoveNode:
 		r.removePeer(cc.Peer)
 	case proto.ConfUpdateNode:
 		r.updatePeer(cc.Peer)
 	case proto.ConfAddLearner:
-		r.addPeer(cc.Peer, true)
+		req := &proto.ConfChangeReq{}
+		if err := json.Unmarshal(cc.Context, req); err != nil {
+			logger.Error("raft[%v] json unmarshal ConfChange Context[%s]", r.id, string(cc.Context))
+		}
+		r.addPeer(cc.Peer, true, req.PromConfig)
 	}
 }
 
@@ -330,7 +336,7 @@ func (r *raftFsm) applyResetPeer(rp *proto.ResetPeers) {
 
 }
 
-func (r *raftFsm) addPeer(peer proto.Peer, isLearner bool) {
+func (r *raftFsm) addPeer(peer proto.Peer, isLearner bool, promConfig proto.PromoteConfig) {
 	r.pendingConf = false
 	if _, ok := r.replicas[peer.ID]; !ok {
 		if r.state == stateLeader {
@@ -340,7 +346,10 @@ func (r *raftFsm) addPeer(peer proto.Peer, isLearner bool) {
 			r.replicas[peer.ID] = newReplica(peer, 0)
 		}
 	}
-	r.replicas[peer.ID].isLearner = isLearner
+	if isLearner {
+		r.replicas[peer.ID].isLearner = true
+		r.replicas[peer.ID].promConfig = promConfig
+	}
 }
 
 func (r *raftFsm) removePeer(peer proto.Peer) {
@@ -415,12 +424,14 @@ func (r *raftFsm) reset(term, lasti uint64, isLeader bool) {
 				r.replicas[id].committed = r.raftLog.committed
 			}
 			r.replicas[id].isLearner = p.isLearner
+			r.replicas[id].promConfig = p.promConfig
 		}
 	} else {
 		r.resetRandomizedElectionTimeout()
 		for id, p := range r.replicas {
 			r.replicas[id] = newReplica(p.peer, 0)
 			r.replicas[id].isLearner = p.isLearner
+			r.replicas[id].promConfig = p.promConfig
 		}
 	}
 }
@@ -466,8 +477,9 @@ func (r *raftFsm) restore(meta proto.SnapshotMeta) {
 	for _, p := range meta.Peers {
 		r.replicas[p.ID] = newReplica(p, 0)
 	}
-	for _, id := range meta.LearnerIDs {
-		r.replicas[id].isLearner = true
+	for _, learner := range meta.Learners {
+		r.replicas[learner.ID].isLearner = true
+		r.replicas[learner.ID].promConfig = learner.PromConfig
 	}
 }
 

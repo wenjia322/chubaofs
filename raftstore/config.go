@@ -66,8 +66,8 @@ type PartitionConfig struct {
 	Peers       []PeerAddress
 	SM          PartitionFsm
 	WalPath     string
-	Learners    []uint64
-	AutoPromote bool // todo
+	Learners    []proto.Learner //todo
+	AutoPromote bool
 }
 
 func (p PeerAddress) String() string {

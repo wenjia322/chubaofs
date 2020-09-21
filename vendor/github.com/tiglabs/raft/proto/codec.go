@@ -28,8 +28,8 @@ const (
 	snapmeta_header uint64 = 20
 	message_header  uint64 = 68
 
-	learnerID_len_size uint64 = 4
-	learnerID_size     uint64 = 8
+	learner_size	uint64 = 10
+	learner_len_size uint64 = 4
 )
 
 // Peer codec
@@ -43,6 +43,23 @@ func (p *Peer) Decode(datas []byte) {
 	p.Type = PeerType(datas[0])
 	p.Priority = binary.BigEndian.Uint16(datas[1:])
 	p.ID = binary.BigEndian.Uint64(datas[3:])
+}
+
+// Learner codec
+func (learner *Learner) Encode(datas []byte) {
+	if learner.PromConfig.AutoPromote {
+		datas[0] = 1
+	} else {
+		datas[0] = 0
+	}
+	datas[1] = learner.PromConfig.PromThreshold
+	binary.BigEndian.PutUint64(datas[2:], learner.ID)
+}
+
+func (learner *Learner) Decode(datas []byte) {
+	learner.PromConfig.AutoPromote = (datas[0] == 1)
+	learner.PromConfig.PromThreshold = datas[1]
+	learner.ID = binary.BigEndian.Uint64(datas[2:])
 }
 
 // HardState codec
@@ -82,8 +99,8 @@ func (c *ConfChange) Decode(datas []byte) {
 }
 
 // SnapshotMeta codec
-func (m *SnapshotMeta) Size() uint64 {		//todo learner, usage
-	return snapmeta_header + peer_size*uint64(len(m.Peers)) + learnerID_len_size + learnerID_size*uint64(len(m.LearnerIDs))
+func (m *SnapshotMeta) Size() uint64 {
+	return snapmeta_header + peer_size*uint64(len(m.Peers)) + learner_len_size + learner_size*uint64(len(m.Learners))
 }
 
 func (m *SnapshotMeta) Encode(w io.Writer) error {
@@ -104,13 +121,13 @@ func (m *SnapshotMeta) Encode(w io.Writer) error {
 		}
 	}
 
-	binary.BigEndian.PutUint32(buf[0:], uint32(len(m.LearnerIDs)))
-	if _, err := w.Write(buf[0:learnerID_len_size]); err != nil {
+	binary.BigEndian.PutUint32(buf[0:], uint32(len(m.Learners)))
+	if _, err := w.Write(buf[0:learner_len_size]); err != nil {
 		return err
 	}
-	for _, id := range m.LearnerIDs {
-		binary.BigEndian.PutUint64(buf[0:], id)
-		if _, err := w.Write(buf[0:learnerID_size]); err != nil {
+	for _, learner := range m.Learners {
+		learner.Encode(buf)
+		if _, err := w.Write(buf[0:learner_size]); err != nil {
 			return err
 		}
 	}
@@ -130,11 +147,11 @@ func (m *SnapshotMeta) Decode(datas []byte) {
 
 	if uint64(len(datas)) > start {
 		learnerSize := binary.BigEndian.Uint32(datas[start:])
-		m.LearnerIDs = make([]uint64, learnerSize)
-		start = start + learnerID_len_size
+		m.Learners = make([]Learner, learnerSize)
+		start = start + learner_len_size
 		for i := uint32(0); i < learnerSize; i++ {
-			m.LearnerIDs[i] = binary.BigEndian.Uint64(datas[start:])
-			start = start + learnerID_size
+			m.Learners[i].Decode(datas[start:])
+			start = start + learner_size
 		}
 	}
 }

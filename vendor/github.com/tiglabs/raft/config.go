@@ -36,6 +36,7 @@ const (
 	defaultTickInterval    = time.Millisecond * 2000
 	defaultHeartbeatTick   = 1
 	defaultElectionTick    = 5
+	defaultPromoteTick	   = 5
 	defaultInflightMsgs    = 128
 	defaultSizeReqBuffer   = 2048
 	defaultSizeAppBuffer   = 2048
@@ -69,6 +70,10 @@ type Config struct {
 	// We suggest to use ElectionTick = 10 * HeartbeatTick to avoid unnecessary leader switching.
 	// The default value is 10s.
 	ElectionTick int
+	// PromoteTick is the promotion of learners interval. A leader propose PromoteLearner configure change
+	// to promote learners every PromoteTick interval.
+	// The default value is 10s.
+	PromoteTick	int
 	// MaxSizePerMsg limits the max size of each append message.
 	// The default value is 1M.
 	MaxSizePerMsg uint64
@@ -128,13 +133,12 @@ type TransportConfig struct {
 type RaftConfig struct {
 	ID           uint64
 	Term         uint64
-	Leader       uint64
+	Leader       uint64f
 	Applied      uint64
 	Peers        []proto.Peer
 	Storage      storage.Storage
 	StateMachine StateMachine
-	Learners	 []uint64
-	AutoPromote  bool
+	Learners	 []proto.Learner
 }
 
 // DefaultConfig returns a Config with usable defaults.
@@ -143,6 +147,7 @@ func DefaultConfig() *Config {
 		TickInterval:    defaultTickInterval,
 		HeartbeatTick:   defaultHeartbeatTick,
 		ElectionTick:    defaultElectionTick,
+		PromoteTick:     defaultPromoteTick,
 		MaxSizePerMsg:   defaultSizePerMsg,
 		MaxInflightMsgs: defaultInflightMsgs,
 		ReqBufferSize:   defaultSizeReqBuffer,
@@ -198,6 +203,9 @@ func (c *Config) validate() error {
 	if c.ElectionTick <= 0 {
 		c.ElectionTick = defaultElectionTick
 	}
+	if c.PromoteTick <= 0 {
+		c.PromoteTick = defaultPromoteTick
+	}
 	if c.MaxSizePerMsg <= 0 {
 		c.MaxSizePerMsg = defaultSizePerMsg
 	}
@@ -235,6 +243,9 @@ func (c *RaftConfig) validate() error {
 	}
 	if c.StateMachine == nil {
 		return errors.New("StateMachine is required")
+	}
+	if c.PromConfig.MatchPercent > 100 || c.PromConfig.MatchPercent <= 0 {
+		return errors.New("Range of MatchPercent is from 0 to 100 ")
 	}
 
 	return nil
