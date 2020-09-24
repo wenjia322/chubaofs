@@ -519,7 +519,7 @@ func TestResetDataReplica(t *testing.T) {
 	addDataServer(newAddr2, "zone2")
 	partition := commonVol.dataPartitions.partitions[1]
 	var inActiveDataNode []*DataNode
-	var newHosts         []string
+	var newHosts []string
 	for i, host := range partition.Hosts {
 		if i < 2 {
 			dataNode, _ := server.cluster.dataNode(host)
@@ -592,11 +592,108 @@ func TestRemoveMetaReplica(t *testing.T) {
 	partition.RUnlock()
 }
 
+func TestAddMetaReplicaLearner(t *testing.T) {
+	maxPartitionID := commonVol.maxPartitionID()
+	partition := commonVol.MetaPartitions[maxPartitionID]
+	if partition == nil {
+		t.Error("no meta partition")
+		return
+	}
+	msAddr1 := "127.0.0.1:8012"
+	msAddr2 := "127.0.0.1:8013"
+
+	var addLearnerFun = func(msAddr string, partition *MetaPartition, auto bool) bool {
+		addMetaServer(msAddr, testZone2)
+		server.cluster.checkMetaNodeHeartbeat()
+		time.Sleep(2 * time.Second)
+		reqURL := fmt.Sprintf("%v%v?id=%v&addr=%v&auto=%v", hostAddr, proto.AdminAddMetaReplicaLearner, partition.PartitionID, msAddr, auto)
+		process(reqURL, t)
+		partition.RLock()
+		if !contains(partition.Hosts, msAddr) {
+			t.Errorf("hosts[%v] should contains dsAddr[%v]", partition.Hosts, msAddr)
+			partition.RUnlock()
+			return false
+		}
+		existPeer, existLearner := false, false
+		for _, peer := range partition.Peers {
+			if peer.Addr == msAddr {
+				existPeer = true
+				break
+			}
+		}
+		for _, learner := range partition.Learners {
+			if learner.Addr == msAddr {
+				existLearner = true
+				break
+			}
+		}
+		if !existPeer || !existLearner {
+			t.Errorf("peer[%v] and learner[%v] should contains dsAddr[%v]", partition.Peers, partition.Learners, msAddr)
+			partition.RUnlock()
+			return false
+		}
+		partition.RUnlock()
+		return true
+	}
+	if ok := addLearnerFun(msAddr1, partition, false); !ok {
+		t.Errorf("raft learner error")
+		return
+	}
+	if ok := addLearnerFun(msAddr2, partition, true); !ok {
+		t.Errorf("raft learner error")
+		return
+	}
+	for i := 0; i < 10; i++ {
+		existLearner := false
+		for _, learner := range partition.Learners {
+			if learner.Addr == msAddr2 {
+				existLearner = true
+				break
+			}
+		}
+		if !existLearner {
+			break
+		}
+		time.Sleep(2 * time.Second)
+		if i == 9 {
+			t.Errorf("auto promote raft learner failed: pid[%v], addr[%v], learners[%v]", partition.PartitionID, msAddr2, partition.Learners)
+			return
+		}
+	}
+}
+
+func TestPromoteMetaReplicaLearner(t *testing.T) {
+	maxPartitionID := commonVol.maxPartitionID()
+	partition := commonVol.MetaPartitions[maxPartitionID]
+	if partition == nil {
+		t.Error("no meta partition")
+		return
+	}
+	partition.IsRecover = false
+	msAddr := "127.0.0.1:8012"
+	reqURL := fmt.Sprintf("%v%v?id=%v&addr=%v", hostAddr, proto.AdminPromoteMetaReplicaLearner, partition.PartitionID, msAddr)
+	process(reqURL, t)
+	partition.RLock()
+	existLearner := false
+	for _, learner := range partition.Learners {
+		if learner.Addr == msAddr {
+			existLearner = true
+			break
+		}
+	}
+	if existLearner {
+		t.Errorf("learners[%v] should not contains dsAddr[%v]", partition.Learners, msAddr)
+		partition.RUnlock()
+		return
+	}
+	partition.RUnlock()
+}
+
 func TestResetMetaReplica(t *testing.T) {
 	newAddr := "127.0.0.1:8010"
-	addMetaServer(newAddr, "zone2")
+	addMetaServer(newAddr, testZone2)
 	newAddr2 := "127.0.0.1:8011"
-	addMetaServer(newAddr2, "zone2")
+	addMetaServer(newAddr2, testZone2)
 	maxPartitionID := commonVol.maxPartitionID()
 	partition := commonVol.MetaPartitions[maxPartitionID]
 	if partition == nil {

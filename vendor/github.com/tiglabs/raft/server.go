@@ -95,7 +95,6 @@ func (rs *RaftServer) run() {
 			rs.mu.RUnlock()
 
 		case <-rs.pmTicker.C:
-			// todo promote learners
 			rs.mu.RLock()
 			for _, raft := range rs.rafts {
 				if !raft.isLeader() {
@@ -342,7 +341,7 @@ func (rs *RaftServer) GetDownReplicas(id uint64) (downReplicas []DownReplica) {
 	status := raft.status()
 	if status != nil && len(status.Replicas) > 0 {
 		for n, r := range status.Replicas {
-			if n == rs.config.NodeID {
+			if n == rs.config.NodeID || r.IsLearner {
 				continue
 			}
 			since := time.Since(r.LastActive)

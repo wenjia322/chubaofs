@@ -85,6 +85,8 @@ const (
 	AdminDecommissionMetaPartition = "/metaPartition/decommission"
 	AdminAddMetaReplica            = "/metaReplica/add"
 	AdminDeleteMetaReplica         = "/metaReplica/delete"
+	AdminAddMetaReplicaLearner     = "/metaLearner/add"
+	AdminPromoteMetaReplicaLearner = "/metaLearner/promote"
 
 	// Operation response
 	GetMetaNodeTaskResponse = "/metaNode/response" // Method: 'POST', ContentType: 'application/json'
@@ -230,6 +232,18 @@ type AddMetaPartitionRaftMemberRequest struct {
 	AddPeer     Peer
 }
 
+// AddMetaPartitionRaftLearnerRequest defines the request of add raftLearner a meta partition.
+type AddMetaPartitionRaftLearnerRequest struct {
+	PartitionId uint64
+	AddLearner  Learner
+}
+
+// AddMetaPartitionRaftLearnerRequest defines the request of add raftLearner a meta partition.
+type PromoteMetaPartitionRaftLearnerRequest struct {
+	PartitionId    uint64
+	PromoteLearner Learner
+}
+
 // RemoveMetaPartitionRaftMemberRequest defines the request of add raftMember a meta partition.
 type RemoveMetaPartitionRaftMemberRequest struct {
 	PartitionId uint64
@@ -240,6 +254,7 @@ type RemoveMetaPartitionRaftMemberRequest struct {
 type ResetMetaPartitionRaftMemberRequest struct {
 	PartitionId uint64
 	NewPeers    []Peer
+	NewLearners []Learner
 }
 
 // LoadDataPartitionRequest defines the request of loading a data partition.

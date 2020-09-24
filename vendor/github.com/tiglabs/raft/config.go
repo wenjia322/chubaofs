@@ -244,8 +244,10 @@ func (c *RaftConfig) validate() error {
 	if c.StateMachine == nil {
 		return errors.New("StateMachine is required")
 	}
-	if c.PromConfig.MatchPercent > 100 || c.PromConfig.MatchPercent <= 0 {
-		return errors.New("Range of MatchPercent is from 0 to 100 ")
+	for _, learner := range c.Learners {
+		if learner.PromConfig.PromThreshold > 100 || learner.PromConfig.PromThreshold <= 0 {
+			return errors.New("Range of MatchPercent is from 0 to 100 ")
+		}
 	}
 
 	return nil

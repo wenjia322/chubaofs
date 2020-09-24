@@ -74,17 +74,18 @@ func newClusterValue(c *Cluster) (cv *clusterValue) {
 }
 
 type metaPartitionValue struct {
-	PartitionID    uint64
-	Start          uint64
-	End            uint64
-	VolID          uint64
-	ReplicaNum     uint8
-	Status         int8
-	VolName        string
-	Hosts          string
-	OfflinePeerID  uint64
-	Peers          []bsProto.Peer
-	IsRecover      bool
+	PartitionID   uint64
+	Start         uint64
+	End           uint64
+	VolID         uint64
+	ReplicaNum    uint8
+	Status        int8
+	VolName       string
+	Hosts         string
+	OfflinePeerID uint64
+	Peers         []bsProto.Peer
+	Learners      []bsProto.Learner
+	IsRecover     bool
 }
 
 func newMetaPartitionValue(mp *MetaPartition) (mpv *metaPartitionValue) {
@@ -98,6 +99,7 @@ func newMetaPartitionValue(mp *MetaPartition) (mpv *metaPartitionValue) {
 		VolName:       mp.volName,
 		Hosts:         mp.hostsToString(),
 		Peers:         mp.Peers,
+		Learners:      mp.Learners,
 		OfflinePeerID: mp.OfflinePeerID,
 		IsRecover:     mp.IsRecover,
 	}
@@ -105,17 +107,17 @@ func newMetaPartitionValue(mp *MetaPartition) (mpv *metaPartitionValue) {
 }
 
 type dataPartitionValue struct {
-	PartitionID uint64
-	ReplicaNum  uint8
-	Hosts       string
-	Peers       []bsProto.Peer
-	Learners    []uint64
-	Status      int8
-	VolID       uint64
-	VolName     string
+	PartitionID   uint64
+	ReplicaNum    uint8
+	Hosts         string
+	Peers         []bsProto.Peer
+	Learners      []uint64
+	Status        int8
+	VolID         uint64
+	VolName       string
 	OfflinePeerID uint64
-	Replicas    []*replicaValue
-	IsRecover   bool
+	Replicas      []*replicaValue
+	IsRecover     bool
 }
 
 type replicaValue struct {
@@ -129,7 +131,7 @@ func newDataPartitionValue(dp *DataPartition) (dpv *dataPartitionValue) {
 		ReplicaNum:    dp.ReplicaNum,
 		Hosts:         dp.hostsToString(),
 		Peers:         dp.Peers,
-		Learners:    dp.Learners,
+		Learners:      dp.Learners,
 		Status:        dp.Status,
 		VolID:         dp.VolID,
 		VolName:       dp.VolName,
@@ -728,9 +730,16 @@ func (c *Cluster) loadMetaPartitions() (err error) {
 				mpv.Peers[i].ID = mn.(*MetaNode).ID
 			}
 		}
+		for i := 0; i < len(mpv.Learners); i++ {
+			mn, ok := c.metaNodes.Load(mpv.Learners[i].Addr)
+			if ok && mn.(*MetaNode).ID != mpv.Learners[i].ID {
+				mpv.Learners[i].ID = mn.(*MetaNode).ID
+			}
+		}
 		mp := newMetaPartition(mpv.PartitionID, mpv.Start, mpv.End, vol.mpReplicaNum, vol.Name, mpv.VolID)
 		mp.setHosts(strings.Split(mpv.Hosts, underlineSeparator))
 		mp.setPeers(mpv.Peers)
+		mp.setLearners(mpv.Learners)
 		mp.OfflinePeerID = mpv.OfflinePeerID
 		mp.IsRecover = mpv.IsRecover
 		vol.addMetaPartition(mp)

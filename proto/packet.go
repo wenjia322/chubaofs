@@ -100,29 +100,31 @@ const (
 	OpMetaBatchGetXAttr   uint8 = 0x39
 
 	// Operations: Master -> MetaNode
-	OpCreateMetaPartition           uint8 = 0x40
-	OpMetaNodeHeartbeat             uint8 = 0x41
-	OpDeleteMetaPartition           uint8 = 0x42
-	OpUpdateMetaPartition           uint8 = 0x43
-	OpLoadMetaPartition             uint8 = 0x44
-	OpDecommissionMetaPartition     uint8 = 0x45
-	OpAddMetaPartitionRaftMember    uint8 = 0x46
-	OpRemoveMetaPartitionRaftMember uint8 = 0x47
-	OpMetaPartitionTryToLeader      uint8 = 0x48
-	OpResetMetaPartitionRaftMember  uint8 = 0x4B
+	OpCreateMetaPartition             uint8 = 0x40
+	OpMetaNodeHeartbeat               uint8 = 0x41
+	OpDeleteMetaPartition             uint8 = 0x42
+	OpUpdateMetaPartition             uint8 = 0x43
+	OpLoadMetaPartition               uint8 = 0x44
+	OpDecommissionMetaPartition       uint8 = 0x45
+	OpAddMetaPartitionRaftMember      uint8 = 0x46
+	OpRemoveMetaPartitionRaftMember   uint8 = 0x47
+	OpMetaPartitionTryToLeader        uint8 = 0x48
+	OpResetMetaPartitionRaftMember    uint8 = 0x4B
+	OpAddMetaPartitionRaftLearner     uint8 = 0x4C
+	OpPromoteMetaPartitionRaftLearner uint8 = 0x4D
 
 	// Operations: Master -> DataNode
-	OpCreateDataPartition           uint8 = 0x60
-	OpDeleteDataPartition           uint8 = 0x61
-	OpLoadDataPartition             uint8 = 0x62
-	OpDataNodeHeartbeat             uint8 = 0x63
-	OpReplicateFile                 uint8 = 0x64
-	OpDeleteFile                    uint8 = 0x65
-	OpDecommissionDataPartition     uint8 = 0x66
-	OpAddDataPartitionRaftMember    uint8 = 0x67
-	OpRemoveDataPartitionRaftMember uint8 = 0x68
-	OpDataPartitionTryToLeader      uint8 = 0x69
-	OpResetDataPartitionRaftMember  uint8 = 0x6A
+	OpCreateDataPartition             uint8 = 0x60
+	OpDeleteDataPartition             uint8 = 0x61
+	OpLoadDataPartition               uint8 = 0x62
+	OpDataNodeHeartbeat               uint8 = 0x63
+	OpReplicateFile                   uint8 = 0x64
+	OpDeleteFile                      uint8 = 0x65
+	OpDecommissionDataPartition       uint8 = 0x66
+	OpAddDataPartitionRaftMember      uint8 = 0x67
+	OpRemoveDataPartitionRaftMember   uint8 = 0x68
+	OpDataPartitionTryToLeader        uint8 = 0x69
+	OpResetDataPartitionRaftMember    uint8 = 0x6A
 	OpPromoteDataPartitionRaftLearner uint8 = 0x6B
 
 	// Operations: MultipartInfo
@@ -354,6 +356,10 @@ func (p *Packet) GetOpMsg() (m string) {
 		m = "OpAddMetaPartitionRaftMember"
 	case OpRemoveMetaPartitionRaftMember:
 		m = "OpRemoveMetaPartitionRaftMember"
+	case OpAddMetaPartitionRaftLearner:
+		m = "OpAddMetaPartitionRaftLearner"
+	case OpPromoteMetaPartitionRaftLearner:
+		m = "OpPromoteMetaPartitionRaftLearner"
 	case OpResetMetaPartitionRaftMember:
 		m = "OpResetMetaPartitionRaftMember"
 	case OpMetaPartitionTryToLeader:

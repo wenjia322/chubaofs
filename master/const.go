@@ -53,7 +53,7 @@ const (
 	nodeDeleteWorkerSleepMs = "deleteWorkerSleepMs"
 	nodeAutoRepairRateKey   = "autoRepairRate"
 	descriptionKey          = "description"
-	learnerKey              = "learner"
+	autoKey                 = "auto"
 )
 
 const (

@@ -109,6 +109,7 @@ func (m *MetaNode) getPartitionByIDHandler(w http.ResponseWriter, r *http.Reques
 	msg["leaderAddr"] = leader
 	conf := mp.GetBaseConfig()
 	msg["peers"] = conf.Peers
+	msg["learners"] = conf.Learners
 	msg["nodeId"] = conf.NodeId
 	msg["cursor"] = conf.Cursor
 	resp.Data = msg

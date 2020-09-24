@@ -76,6 +76,7 @@ type MetaPartitionInfo struct {
 	IsRecover     bool
 	Hosts         []string
 	Peers         []Peer
+	Learners      []Learner
 	Zones         []string
 	OfflinePeerID uint64
 	MissNodes     map[string]int64
