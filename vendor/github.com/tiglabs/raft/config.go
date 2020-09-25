@@ -133,7 +133,7 @@ type TransportConfig struct {
 type RaftConfig struct {
 	ID           uint64
 	Term         uint64
-	Leader       uint64f
+	Leader       uint64
 	Applied      uint64
 	Peers        []proto.Peer
 	Storage      storage.Storage

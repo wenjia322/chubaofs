@@ -336,7 +336,7 @@ func (r *raftFsm) applyResetPeer(rp *proto.ResetPeers) {
 
 }
 
-func (r *raftFsm) addPeer(peer proto.Peer, isLearner bool, promConfig proto.PromoteConfig) {
+func (r *raftFsm) addPeer(peer proto.Peer, isLearner bool, promConfig *proto.PromoteConfig) {
 	r.pendingConf = false
 	if _, ok := r.replicas[peer.ID]; !ok {
 		if r.state == stateLeader {

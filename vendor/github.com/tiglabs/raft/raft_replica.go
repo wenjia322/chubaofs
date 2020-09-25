@@ -34,7 +34,7 @@ type replica struct {
 
 	lastActive 	time.Time
 	isLearner	bool
-	promConfig  proto.PromoteConfig
+	promConfig  *proto.PromoteConfig
 }
 
 func newReplica(peer proto.Peer, maxInflight int) *replica {

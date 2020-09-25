@@ -46,7 +46,7 @@ func NewRaftServer(config *Config) (*RaftServer, error) {
 	rs := &RaftServer{
 		config: config,
 		ticker: time.NewTicker(config.TickInterval),
-		pmTicker:time.NewTicker(config.TickInterval*config.PromoteTick),
+		pmTicker:time.NewTicker(config.TickInterval * time.Duration(config.PromoteTick)),
 		rafts:  make(map[uint64]*raft),
 		heartc: make(chan *proto.Message, 512),
 		stopc:  make(chan struct{}),
