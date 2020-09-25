@@ -428,7 +428,7 @@ func (r *raftFsm) sendAppend(to uint64) {
 		for _, p := range r.replicas {
 			snapMeta.Peers = append(snapMeta.Peers, p.peer)
 			if p.isLearner {
-				learner := &proto.Learner{ID: p.peer.ID, PromConfig: p.promConfig}
+				learner := proto.Learner{ID: p.peer.ID, PromConfig: p.promConfig}
 				snapMeta.Learners = append(snapMeta.Learners, learner)
 			}
 		}
