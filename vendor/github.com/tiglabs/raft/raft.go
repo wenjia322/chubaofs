@@ -886,7 +886,7 @@ func (s *raft) isLearnerReady(pr *replica) bool {
 		return false
 	}
 	leaderPr, ok := s.raftFsm.replicas[s.config.NodeID]
-	if !ok || float64(pr.match) < float64(leaderPr.match)*float64(pr.promConfig.PromThreshold)*0.01 {
+	if !ok || float64(pr.match) < float64(leaderPr.match)*float64(proto.LearnerProgress)*0.01 {
 		return false
 	}
 	// todo learner as quorum?
