@@ -33,10 +33,14 @@ type Peer struct {
 
 // Learner defines the learner of the node id and address.
 type Learner struct {
-	ID            uint64 `json:"id"`
-	Addr          string `json:"addr"`
-	AutoProm      bool   `json:"auto_prom"`
-	PromThreshold uint8  `json:"prom_threshold"`
+	ID       uint64         `json:"id"`
+	Addr     string         `json:"addr"`
+	PmConfig *PromoteConfig `json:"promote_config"`
+}
+
+type PromoteConfig struct {
+	AutoProm      bool  `json:"auto_prom"`
+	PromThreshold uint8 `json:"prom_threshold"`
 }
 
 // CreateMetaPartitionRequest defines the request to create a meta partition.

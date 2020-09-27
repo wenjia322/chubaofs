@@ -290,9 +290,9 @@ func (r *raftFsm) applyConfChange(cc *proto.ConfChange) {
 	case proto.ConfUpdateNode:
 		r.updatePeer(cc.Peer)
 	case proto.ConfAddLearner:
-		req := &proto.ConfChangeReq{}
+		req := &proto.ConfChangeLearnerReq{}
 		if err := json.Unmarshal(cc.Context, req); err != nil {
-			logger.Error("raft[%v] json unmarshal ConfChange Context[%s]", r.id, string(cc.Context))
+			logger.Error("raft[%v] json unmarshal ConfChangeLearnerReq Context[%s]", r.id, string(cc.Context))
 		}
 		r.addPeer(cc.Peer, true, req.PromConfig)
 	}

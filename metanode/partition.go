@@ -335,7 +335,7 @@ func (mp *metaPartition) startRaft() (err error) {
 		mp.config.PartitionId, peers)
 
 	for _, learner := range mp.config.Learners {
-		rl := raftproto.Learner{ID: learner.ID, PromConfig: &raftproto.PromoteConfig{AutoPromote: learner.AutoProm, PromThreshold: raftproto.LearnerProgress}}
+		rl := raftproto.Learner{ID: learner.ID, PromConfig: &raftproto.PromoteConfig{AutoPromote: learner.PmConfig.AutoProm, PromThreshold: raftproto.LearnerProgress}}
 		learners = append(learners, rl)
 	}
 	pc := &raftstore.PartitionConfig{

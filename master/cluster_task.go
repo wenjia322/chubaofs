@@ -647,7 +647,7 @@ func (c *Cluster) addMetaReplicaLearner(partition *MetaPartition, addr string, a
 	if err != nil {
 		return
 	}
-	addLearner := proto.Learner{ID: metaNode.ID, Addr: addr, AutoProm: autoProm}
+	addLearner := proto.Learner{ID: metaNode.ID, Addr: addr, PmConfig: &proto.PromoteConfig{AutoProm: autoProm}}
 	addPeer := proto.Peer{ID: metaNode.ID, Addr: addr}
 	if err = c.addMetaPartitionRaftLearner(partition, addLearner); err != nil {
 		return

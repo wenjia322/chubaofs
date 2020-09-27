@@ -234,14 +234,14 @@ type AddMetaPartitionRaftMemberRequest struct {
 
 // AddMetaPartitionRaftLearnerRequest defines the request of add raftLearner a meta partition.
 type AddMetaPartitionRaftLearnerRequest struct {
-	PartitionId uint64
-	AddLearner  Learner
+	PartitionId uint64  `json:"pid"`
+	AddLearner  Learner `json:"learner"`
 }
 
 // AddMetaPartitionRaftLearnerRequest defines the request of add raftLearner a meta partition.
 type PromoteMetaPartitionRaftLearnerRequest struct {
-	PartitionId    uint64
-	PromoteLearner Learner
+	PartitionId    uint64  `json:"pid"`
+	PromoteLearner Learner `json:"learner"`
 }
 
 // RemoveMetaPartitionRaftMemberRequest defines the request of add raftMember a meta partition.

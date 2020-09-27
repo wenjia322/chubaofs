@@ -87,8 +87,8 @@ type Peer struct {
 }
 
 type Learner struct {
-	ID			uint64	// NodeID
-	PromConfig	*PromoteConfig
+	ID			uint64			`json:"id"`	// NodeID
+	PromConfig	*PromoteConfig	`json:"promote_config"`
 }
 
 // HardState is the repl state,must persist to the storage.
@@ -147,10 +147,9 @@ type PromoteConfig struct {
 	AutoPromote   bool
 }
 
-type ConfChangeReq struct {
-	Id			uint64
-	ChangePeer	Peer
-	PromConfig  *PromoteConfig
+type ConfChangeLearnerReq struct {
+	Id				uint64	`json:"pid"`
+	ChangeLearner	Learner	`json:"learner"`
 } 
 
 type HeartbeatContext []uint64

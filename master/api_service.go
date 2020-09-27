@@ -541,7 +541,7 @@ func (m *Server) addMetaReplicaLearner(w http.ResponseWriter, r *http.Request) {
 	}
 	mp.IsRecover = true
 	m.cluster.putBadMetaPartitions(addr, mp.PartitionID)
-	msg = fmt.Sprintf("meta partitionID :%v  add replica [%v] successfully", partitionID, addr)
+	msg = fmt.Sprintf("meta partitionID[%v] add replica learner[%v] successfully", partitionID, addr)
 	sendOkReply(w, r, newSuccessHTTPReply(msg))
 }
 

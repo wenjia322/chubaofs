@@ -433,11 +433,11 @@ func formatPeer(peer proto.Peer) string {
 var learnerTableRowPattern = "%-6v    %-18v    %-6v"
 
 func formatLearnerTableHeader() string {
-	return fmt.Sprintf(learnerTableRowPattern, "ID", "LEARNER", "AUTOPROMOTE")
+	return fmt.Sprintf(learnerTableRowPattern, "ID", "ADDRESS", "AUTOPROMOTE")
 }
 
 func formatLearner(learner proto.Learner) string {
-	return fmt.Sprintf(learnerTableRowPattern, learner.ID, learner.Addr, learner.AutoProm)
+	return fmt.Sprintf(learnerTableRowPattern, learner.ID, learner.Addr, learner.PmConfig.AutoProm)
 }
 
 var dataNodeDetailTableRowPattern = "%-6v    %-6v    %-18v    %-6v    %-6v    %-6v    %-10v"
