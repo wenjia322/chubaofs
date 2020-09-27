@@ -908,6 +908,7 @@ func (s *raft) promoteLearner() {
 				logger.Error("raft[%v] json marshal ConfChangeLearnerReq[%v] err[%v]", s.raftConfig.ID, req, err)
 				continue
 			}
+			p := proto.Peer{ID: id}
 			s.proposeMemberChange(&proto.ConfChange{Type: proto.ConfPromoteLearner, Peer: p, Context: bytes}, future)
 			if resp, err := future.Response(); err != nil {
 				logger.Error("raft[%v] leader[%v] auto promote learner[%v] resp[%v] err[%v]", s.raftConfig.ID, s.config.NodeID, id, resp, err)

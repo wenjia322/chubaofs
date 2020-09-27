@@ -294,7 +294,7 @@ func (r *raftFsm) applyConfChange(cc *proto.ConfChange) {
 		if err := json.Unmarshal(cc.Context, req); err != nil {
 			logger.Error("raft[%v] json unmarshal ConfChangeLearnerReq Context[%s]", r.id, string(cc.Context))
 		}
-		r.addPeer(cc.Peer, true, req.PromConfig)
+		r.addPeer(cc.Peer, true, req.ChangeLearner.PromConfig)
 	}
 }
 
