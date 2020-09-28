@@ -143,8 +143,8 @@ type ResetPeers struct {
 }
 
 type PromoteConfig struct {
-	PromThreshold uint8		// promote threshold
-	AutoPromote   bool
+	PromThreshold uint8	`json:"prom_threshold"`
+	AutoPromote   bool 	`json:"auto_prom"`
 }
 
 type ConfChangeLearnerReq struct {
