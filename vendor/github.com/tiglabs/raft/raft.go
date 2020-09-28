@@ -898,7 +898,6 @@ func (s *raft) isLearnerReady(pr *replica) bool {
 
 func (s *raft) promoteLearner() {
 	for id, pr := range s.raftFsm.replicas {
-		logger.Info("id[%v]: raft nodeID[%v], pr id[%v], pr[%v], learner[%v], pmconf[%v]", s.raftConfig.ID, s.config.NodeID, id, pr, pr.isLearner, pr.promConfig)
 		if pr.isLearner && pr.promConfig.AutoPromote {
 			future := newFuture()
 			lear := proto.Learner{ID: id}
@@ -910,6 +909,7 @@ func (s *raft) promoteLearner() {
 			}
 			p := proto.Peer{ID: id}
 			s.proposeMemberChange(&proto.ConfChange{Type: proto.ConfPromoteLearner, Peer: p, Context: bytes}, future)
+			logger.Debug("raft[%v] leader[%v] auto promote learner[%v]", s.raftConfig.ID, s.config.NodeID, req)
 			if resp, err := future.Response(); err != nil {
 				logger.Error("raft[%v] leader[%v] auto promote learner[%v] resp[%v] err[%v]", s.raftConfig.ID, s.config.NodeID, id, resp, err)
 			}

@@ -346,8 +346,8 @@ func (r *raftFsm) addPeer(peer proto.Peer, isLearner bool, promConfig *proto.Pro
 			r.replicas[peer.ID] = newReplica(peer, 0)
 		}
 	}
+	r.replicas[peer.ID].isLearner = isLearner
 	if isLearner {
-		r.replicas[peer.ID].isLearner = true
 		r.replicas[peer.ID].promConfig = promConfig
 	}
 }
