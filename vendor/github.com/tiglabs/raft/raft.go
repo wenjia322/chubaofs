@@ -900,7 +900,7 @@ func (s *raft) promoteLearner() {
 	for id, pr := range s.raftFsm.replicas {
 		if pr.isLearner && pr.promConfig.AutoPromote {
 			future := newFuture()
-			lear := proto.Learner{ID: id}
+			lear := proto.Learner{ID: id, PromConfig: &proto.PromoteConfig{AutoPromote: true}}
 			req := &proto.ConfChangeLearnerReq{Id: s.raftConfig.ID, ChangeLearner: lear}
 			bytes, err := json.Marshal(req)
 			if err != nil {
