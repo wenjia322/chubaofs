@@ -1388,6 +1388,7 @@ func (c *Cluster) updateMetaNode(metaNode *MetaNode, metaPartitions []*proto.Met
 			mp.addUpdateMetaReplicaTask(c)
 		}
 		mp.updateMetaPartition(mr, metaNode)
+		c.removePromotedLearners(mp, mr.IsLearner, metaNode.ID)
 		c.updateInodeIDUpperBound(mp, mr, threshold, metaNode)
 	}
 }
@@ -1416,4 +1417,26 @@ func (c *Cluster) updateInodeIDUpperBound(mp *MetaPartition, mr *proto.MetaParti
 		log.LogError(err)
 	}
 	return
+}
+
+func (c *Cluster) removePromotedLearners(mp *MetaPartition, isLearner bool, nodeID uint64) {
+	mp.Lock()
+	defer mp.Unlock()
+	if !isLearner {
+		// learner had been promoted, remove the learner
+		index := -1
+		for i, learner := range mp.Learners {
+			if learner.ID == nodeID {
+				index = i
+				break
+			}
+		}
+		if index != -1 {
+			mp.Learners = append(mp.Learners[:index], mp.Learners[index+1:]...)
+			if err := mp.persistToRocksDB("updateMetaPartitionOfflinePeerIDWithLock", mp.volName, mp.Hosts, mp.Peers, mp.Learners, c); err != nil {
+				log.LogErrorf("mp[%v] auto remove learner [nodeID: %v] err: persist to rocksDB err [%v]", mp.PartitionID, nodeID, err)
+				return
+			}
+		}
+	}
 }

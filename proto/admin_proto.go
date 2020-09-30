@@ -343,6 +343,7 @@ type MetaPartitionReport struct {
 	VolName     string
 	InodeCnt    uint64
 	DentryCnt   uint64
+	IsLearner   bool
 }
 
 // MetaNodeHeartbeatResponse defines the response to the meta node heartbeat request.

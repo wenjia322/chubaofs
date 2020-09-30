@@ -170,6 +170,7 @@ type OpMeta interface {
 // OpPartition defines the interface for the partition operations.
 type OpPartition interface {
 	IsLeader() (leaderAddr string, isLeader bool)
+	IsLearner() bool
 	GetCursor() uint64
 	GetBaseConfig() MetaPartitionConfig
 	ResponseLoadMetaPartition(p *Packet) (err error)
@@ -419,6 +420,15 @@ func (mp *metaPartition) IsLeader() (leaderAddr string, ok bool) {
 		}
 	}
 	return
+}
+
+func (mp *metaPartition) IsLearner() bool {
+	for _, learner := range mp.config.Learners {
+		if mp.config.NodeId == learner.ID {
+			return true
+		}
+	}
+	return false
 }
 
 func (mp *metaPartition) GetPeers() (peers []string) {
