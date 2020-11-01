@@ -25,6 +25,8 @@ const (
 	AdminDiagnoseDataPartition     = "/dataPartition/diagnose"
 	AdminDeleteDataReplica         = "/dataReplica/delete"
 	AdminAddDataReplica            = "/dataReplica/add"
+	AdminAddDataReplicaLearner     = "/dataLearner/add"
+	AdminPromoteDataReplicaLearner = "/dataLearner/promote"
 	AdminDeleteVol                 = "/vol/delete"
 	AdminUpdateVol                 = "/vol/update"
 	AdminVolShrink                 = "/vol/shrink"
@@ -163,8 +165,8 @@ type CreateDataPartitionRequest struct {
 	VolumeId      string
 	IsRandomWrite bool
 	Members       []Peer
+	Learners      []Learner
 	Hosts         []string
-	Learners      []uint64
 	CreateType    int
 }
 
@@ -200,19 +202,24 @@ type DataPartitionDecommissionRequest struct {
 type AddDataPartitionRaftMemberRequest struct {
 	PartitionId uint64
 	AddPeer     Peer
-	IsLearner   bool
 }
 
-// PromoteDataPartitionRaftMemberRequest defines the request of promote learner raftMember a data partition.
-type PromoteDataPartitionRaftMemberRequest struct {
-	PartitionId uint64
-	PromotePeer Peer
+// PromoteDataPartitionRaftLearnerRequest defines the request of promote learner raftMember a data partition.
+type PromoteDataPartitionRaftLearnerRequest struct {
+	PartitionId    uint64  `json:"pid"`
+	PromoteLearner Learner `json:"learner"`
 }
 
 // RemoveDataPartitionRaftMemberRequest defines the request of add raftMember a data partition.
 type RemoveDataPartitionRaftMemberRequest struct {
 	PartitionId uint64
 	RemovePeer  Peer
+}
+
+// AddDataPartitionRaftLearnerRequest defines the request of add raftLearner a data partition.
+type AddDataPartitionRaftLearnerRequest struct {
+	PartitionId uint64  `json:"pid"`
+	AddLearner  Learner `json:"learner"`
 }
 
 // AddMetaPartitionRaftMemberRequest defines the request of add raftMember a meta partition.
@@ -237,13 +244,6 @@ type PromoteMetaPartitionRaftLearnerRequest struct {
 type RemoveMetaPartitionRaftMemberRequest struct {
 	PartitionId uint64
 	RemovePeer  Peer
-}
-
-// ResetMetaPartitionRaftMemberRequest defines the request of reset raftMembers of a meta partition.
-type ResetMetaPartitionRaftMemberRequest struct {
-	PartitionId uint64
-	NewPeers    []Peer
-	NewLearners []Learner
 }
 
 // LoadDataPartitionRequest defines the request of loading a data partition.
@@ -303,6 +303,7 @@ type PartitionReport struct {
 	IsLeader        bool
 	ExtentCount     int
 	NeedCompare     bool
+	IsLearner       bool
 }
 
 // DataNodeHeartbeatResponse defines the response to the data node heartbeat.
